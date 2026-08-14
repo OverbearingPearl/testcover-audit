@@ -1,0 +1,141 @@
+name: MELPA Build Test
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'Commit SHA (or branch/tag) to test'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.commit || github.ref }}
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          sudo apt-get update && sudo apt-get install -y emacs
+          git clone https://github.com/riscy/melpazoid.git ~/melpazoid
+          echo "(package-install 'package-build)" > ~/melpazoid/_requirements.el
+          pip install ~/melpazoid
+
+      - name: Initialize build log
+        run: echo "=== Starting MELPA Build Test ===" > build-logs.txt
+
+      - name: Run melpazoid
+        id: melpazoid_run
+        env:
+          LOCAL_REPO: ${{ github.workspace }}
+          RECIPE: (pearl-testcover :fetcher github :repo "${{ github.repository }}")
+          EXIST_OK: false
+        run: |
+          set -o pipefail
+          echo "=== Running melpazoid ===" >> build-logs.txt
+          make -C ~/melpazoid 2>&1 | sed -r "s/\x1B\[[0-9;]*[mGK]//g" | tee -a build-logs.txt
+
+      - name: Build release package
+        id: build_release
+        if: success() && github.event_name == 'push' && endsWith(github.ref_name, '.0')
+        run: |
+          {
+            echo "=== Building release package ==="
+            mkdir -p dist/pearl-testcover
+            cp pearl-testcover.el pearl-testcover-test.el README.md LICENSE dist/pearl-testcover/
+            cd dist
+            zip -r ../pearl-testcover-${{ github.ref_name }}.zip pearl-testcover/
+          } 2>&1 | tee -a build-logs.txt
+
+      - name: Create GitHub Release
+        if: success() && github.event_name == 'push' && endsWith(github.ref_name, '.0')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: pearl-testcover-*.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Send failure notification
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          secure: true
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "pearl-testcover ${{ github.ref_name }} - Build Failed"
+          html_body: |
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;">
+              <div style="background-color:#d32f2f;color:#ffffff;padding:20px;text-align:center;border-radius:8px 8px 0 0;">
+                <h1 style="margin:0;font-size:24px;">❌ Build Failed</h1>
+                <p style="margin:8px 0 0 0;opacity:0.9;font-size:14px;">pearl-testcover ${{ github.ref_name }}</p>
+              </div>
+
+              <div style="background-color:#ffffff;padding:24px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px;">
+                <p style="color:#333;font-size:15px;line-height:1.6;">
+                  The CI workflow failed during <strong>MELPA compliance checks</strong> or <strong>release packaging</strong>.
+                  Click the button below to view the full run logs and identify the exact failure.
+                </p>
+
+                <div style="text-align:center;margin:24px 0;">
+                  <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                     style="display:inline-block;background-color:#1976d2;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;font-size:14px;">
+                    View Workflow Logs →
+                  </a>
+                </div>
+
+                <table style="width:100%;border-collapse:collapse;font-size:14px;color:#555;">
+                  <tr style="border-bottom:1px solid #f0f0f0;">
+                    <td style="padding:10px 0;font-weight:600;width:100px;">Repository</td>
+                    <td style="padding:10px 0;">
+                      <a href="${{ github.server_url }}/${{ github.repository }}" style="color:#1976d2;text-decoration:none;">${{ github.repository }}</a>
+                    </td>
+                  </tr>
+                  <tr style="border-bottom:1px solid #f0f0f0;">
+                    <td style="padding:10px 0;font-weight:600;">Branch/Tag</td>
+                    <td style="padding:10px 0;">
+                      <a href="${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}" style="color:#1976d2;text-decoration:none;">${{ github.ref_name }}</a>
+                    </td>
+                  </tr>
+                  <tr style="border-bottom:1px solid #f0f0f0;">
+                    <td style="padding:10px 0;font-weight:600;">Commit</td>
+                    <td style="padding:10px 0;font-family:monospace;font-size:13px;">
+                      <a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" style="color:#1976d2;text-decoration:none;">${{ github.sha }}</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 0;font-weight:600;">Releases</td>
+                    <td style="padding:10px 0;">
+                      <a href="${{ github.server_url }}/${{ github.repository }}/releases" style="color:#1976d2;text-decoration:none;">View All Releases</a>
+                    </td>
+                  </tr>
+                </table>
+
+                <div style="margin-top:24px;padding:12px;background-color:#fff3e0;border-left:4px solid #ff9800;border-radius:4px;font-size:13px;color:#e65100;">
+                  <strong>Tip:</strong> The file <code>build-logs.txt</code> is attached to this email for offline review.
+                </div>
+              </div>
+
+              <div style="text-align:center;padding:16px;color:#999;font-size:12px;">
+                GitHub Actions · ${{ github.workflow }} · Run #${{ github.run_number }}
+              </div>
+            </div>
+          to: ${{ secrets.NOTIFY_EMAIL }}
+          from: ${{ secrets.SMTP_USER }}
+          attachments: build-logs.txt
