@@ -55,8 +55,9 @@ jobs:
         run: |
           {
             echo "=== Building release package ==="
-            mkdir -p dist/pearl-testcover
-            cp pearl-testcover.el pearl-testcover-test.el README.md LICENSE dist/pearl-testcover/
+            mkdir -p dist/pearl-testcover/lisp
+            cp pearl-testcover.el README.md LICENSE dist/pearl-testcover/
+            cp lisp dist/pearl-testcover/
             cd dist
             zip -r ../pearl-testcover-${{ github.ref_name }}.zip pearl-testcover/
           } 2>&1 | tee -a build-logs.txt
