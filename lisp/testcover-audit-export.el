@@ -1,9 +1,9 @@
-;;; pearl-testcover-export.el --- Org/JSON export and CI checks -*- lexical-binding: t; -*-
+;;; testcover-audit-export.el --- Org/JSON export and CI checks -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026 OverbearingPearl
 ;; Author: OverbearingPearl <OverbearingPearl@outlook.com>
 ;; Assisted-by: Deepseek:deepseek-v4-flash
-;; URL: https://github.com/OverbearingPearl/pearl-testcover
+;; URL: https://github.com/OverbearingPearl/testcover-audit
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;;; Commentary:
@@ -13,26 +13,26 @@
 
 ;;; Code:
 
-(require 'pearl-testcover-options)
-(require 'pearl-testcover-core)
-(require 'pearl-testcover-scan)
+(require 'testcover-audit-options)
+(require 'testcover-audit-core)
+(require 'testcover-audit-scan)
 
 ;;;###autoload
-(defun pearl-testcover-export-org (file)
+(defun testcover-audit-export-org (file)
   "Export current or batch report to Org file FILE."
   (interactive "FExport to Org file: ")
   ;; TODO: Implement Org export.
   )
 
 ;;;###autoload
-(defun pearl-testcover-export-json (file)
+(defun testcover-audit-export-json (file)
   "Export machine-readable report to JSON file FILE."
   (interactive "FExport to JSON file: ")
   ;; TODO: Implement JSON export.
   )
 
 ;;;###autoload
-(defun pearl-testcover-ci-check ()
+(defun testcover-audit-ci-check ()
   "Exit with non-zero status if coverage is below threshold.
 
 Intended for use in CI pipelines."
@@ -40,5 +40,5 @@ Intended for use in CI pipelines."
   ;; TODO: Implement threshold check and exit code.
   )
 
-(provide 'pearl-testcover-export)
-;;; pearl-testcover-export.el ends here
+(provide 'testcover-audit-export)
+;;; testcover-audit-export.el ends here
