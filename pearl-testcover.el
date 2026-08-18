@@ -15,6 +15,41 @@
 ;; built-in testcover.el.  It shows coverage percentage, counts of
 ;; covered, uncovered and 1value forms, and can generate per-function
 ;; and per-file reports.
+;;
+;; The package provides the following user-facing commands:
+;;
+;;   pearl-testcover-show-stats
+;;     Display a brief coverage summary in the echo area.
+;;
+;;   pearl-testcover-show-all-stats
+;;     Open a detailed report buffer with color-coded statistics.
+;;
+;;   pearl-testcover-show-function-stats
+;;     Group coverage data by function to locate uncovered logic.
+;;
+;;   pearl-testcover-batch-report
+;;     Show an aggregate table for all instrumented files.
+;;
+;;   pearl-testcover-scan-directory
+;;     Recursively instrument all .el files in a directory.
+;;
+;;   pearl-testcover-project-report
+;;     Run a full coverage analysis for the current project.
+;;
+;;   pearl-testcover-export-org
+;;     Export a report in Org syntax.
+;;
+;;   pearl-testcover-export-json
+;;     Export a machine-readable JSON report.
+;;
+;;   pearl-testcover-ci-check
+;;     Return a non-zero exit status when coverage is below a threshold.
+;;
+;; Enable pearl-testcover-mode to display the current buffer's coverage
+;; percentage in the mode line.  Enable pearl-testcover-ert-mode to
+;; automatically generate a report after each ERT test run.
+;;
+;; All user-facing configuration is grouped under `pearl-testcover'.
 
 ;;; Code:
 
