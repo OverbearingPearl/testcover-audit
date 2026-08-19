@@ -86,7 +86,6 @@ Prefer the current buffer's coverage vector (found via
            (file-width (max 10 (if file-names
                                     (apply #'max (mapcar #'length file-names))
                                   10)))
-           (file-col-format (format "%%-%ds" file-width))
            (stats (testcover-audit-core--all-files-stats))
            (total (plist-get stats :total))
            (covered (plist-get stats :covered))
@@ -108,8 +107,7 @@ Prefer the current buffer's coverage vector (found via
           (insert (propertize (format "%d%%" percent)
                               'face (testcover-audit-report--face-for-percent percent)))
           (insert "\n\nPer-file breakdown\n")
-          (insert (format (concat file-col-format
-                                  " %10s %10s %10s %10s %10s\n")
+          (insert (format (format "%%-%ds %%10s %%10s %%10s %%10s %%10s\n" file-width)
                           "File" "Total" "Covered" "1value" "Uncovered" "Coverage"))
           (insert (make-string (+ file-width (* 5 11)) ?-))
           (insert "\n")
@@ -124,8 +122,7 @@ Prefer the current buffer's coverage vector (found via
                          (fone   (plist-get fstats :onevalue))
                          (funcov (plist-get fstats :uncovered))
                          (fpercent (plist-get fstats :percent)))
-                     (insert (format (concat file-col-format
-                                             " %10d %10d %10d %10d ")
+                     (insert (format (format "%%-%ds %%10d %%10d %%10d %%10d " file-width)
                                      fname ftotal fcov fone funcov))
                      (insert (propertize (format "%10d%%" fpercent)
                                          'face (testcover-audit-report--face-for-percent fpercent)))
@@ -150,8 +147,7 @@ Prefer the current buffer's coverage vector (found via
     (dolist (row rows)
       (let ((cell0 (prin1-to-string (nth 0 row)))
             (cell1 (prin1-to-string (nth 1 row))))
-        (push (format (concat "%-" (number-to-string width0) "s  %-"
-                              (number-to-string width1) "s")
+        (push (format (format "%%-%ds  %%-%ds" width0 width1)
                       cell0 cell1)
               lines)))
     (mapconcat #'identity (nreverse lines) "\n")))

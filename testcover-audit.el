@@ -176,11 +176,11 @@ the current buffer in the mode line."
       (ert-run-tests-batch-and-exit)
     (ert t)))
 
-;;; The following commands are defined in the main module as the
-;;; single entry point for user-facing API.  Submodules keep the
-;;; non‑interactive implementations with internal double-dash names;
-;;; these wrappers add the `interactive' spec that makes them
-;;; invokable with M-x.
+;; The following commands are defined in the main module as the
+;; single entry point for user-facing API.  Submodules keep the
+;; non‑interactive implementations with internal double-dash names;
+;; these wrappers add the `interactive' spec that makes them
+;; invokable with M-x.
 
 ;;;###autoload
 (defun testcover-audit-export-org (file)
