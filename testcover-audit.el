@@ -160,6 +160,7 @@ the current buffer in the mode line."
 
 (defun testcover-audit--run-tests ()
   "Run all testcover-audit test suites."
+  (interactive)
   (require 'ert)
   (ert-delete-all-tests)
   ;; Reload all modules first to ensure latest code is used

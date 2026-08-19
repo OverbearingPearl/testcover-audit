@@ -2,7 +2,7 @@
 
 **Testcover Audit** adds quantitative coverage statistics to Emacs' built-in `testcover.el`. It shows coverage percentage, counts of covered / uncovered / 1value forms, and can generate per-file and per-function breakdowns.
 
-## Screenshots
+![project](screenshots/screenshot-project.png)
 
 t.b.d.
 
