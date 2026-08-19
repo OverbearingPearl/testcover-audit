@@ -158,7 +158,7 @@ the current buffer in the mode line."
           (load-file el-path))))
     (message "testcover-audit modules reloaded.")))
 
-(defun testcover-audit--run-tests ()
+(defun testcover-audit-run-tests ()
   "Run all testcover-audit test suites."
   (interactive)
   (require 'ert)
