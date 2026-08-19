@@ -19,7 +19,7 @@
 (require 'testcover-audit-scan)
 
 (defun testcover-audit-ert--after-run ()
-  "Function added to `ert-after-run-hook'."
+  "Function called after an ERT test run batch completes."
   (run-hooks 'testcover-audit-ert-after-run-hook)
   (when testcover-audit-auto-show-report
     (when testcover-audit-ert-scan-directory
@@ -34,11 +34,12 @@
 (define-minor-mode testcover-audit-ert-mode
   "Automatically run coverage reports after ERT tests."
   :global t
+  :require 'testcover-audit-ert
   :lighter " PTert"
   :group 'testcover-audit
   (if testcover-audit-ert-mode
-      (add-hook 'ert-after-run-hook #'testcover-audit-ert--after-run)
-    (remove-hook 'ert-after-run-hook #'testcover-audit-ert--after-run)))
+      (advice-add 'ert-run-tests-batch :after #'testcover-audit-ert--after-run)
+    (advice-remove 'ert-run-tests-batch #'testcover-audit-ert--after-run)))
 
 (provide 'testcover-audit-ert)
 ;;; testcover-audit-ert.el ends here

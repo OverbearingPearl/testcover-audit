@@ -18,11 +18,11 @@
       (should called))))
 
 (ert-deftest testcover-audit-ert-test--mode ()
-  "Test that ERT mode toggles hooks correctly."
+  "Test that ERT mode toggles the coverage advice correctly."
   (testcover-audit-ert-mode 1)
-  (should (member #'testcover-audit-ert--after-run ert-after-run-hook))
+  (should (advice-member-p #'testcover-audit-ert--after-run 'ert-run-tests-batch))
   (testcover-audit-ert-mode -1)
-  (should-not (member #'testcover-audit-ert--after-run ert-after-run-hook)))
+  (should-not (advice-member-p #'testcover-audit-ert--after-run 'ert-run-tests-batch)))
 
 (provide 'testcover-audit-ert-test)
 ;;; testcover-audit-ert-test.el ends here
