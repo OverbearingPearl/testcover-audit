@@ -85,10 +85,12 @@ repos:
                               (princ \"\n\"))))
                         ;; format-check
                         (let ((format-errors nil)
-                              (lines (split-string (buffer-string) \"\n\" t))
+                              (lines (split-string (buffer-string) \"\n\"))
                               (line-num 0)
                               (blank-run 0)
                               (last-blank-start nil))
+                          (when (and lines (string-empty-p (car (last lines))))
+                            (setq lines (butlast lines)))
                           (dolist (line lines)
                             (setq line-num (1+ line-num))
                             (when (and (not (string-match-p \"^[ \\t]*$\" line))
