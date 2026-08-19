@@ -32,7 +32,10 @@ repos:
                       (let ((buf (find-file file))
                             (failed nil))
                         (dolist (b '(\"*Warnings*\" \"*Compile-Log*\" \"*Messages*\"))
-                          (when (get-buffer b) (with-current-buffer b (erase-buffer))))
+                          (when (get-buffer b)
+                            (with-current-buffer b
+                              (let ((inhibit-read-only t))
+                                (erase-buffer)))))
                         (setq p/errors '())
                         (princ (format \"===== %s =====\n\" file))
                         ;; checkdoc
@@ -63,7 +66,15 @@ repos:
                               (princ (p/indent pl))
                               (princ \"\n\"))))
                         ;; byte-compile
-                        (byte-compile-file file)
+                        (let ((inhibit-message t)
+                              (byte-compile-verbose nil))
+                          (byte-compile-file file))
+                        ;; clear other buffers that may hold duplicate warnings
+                        (dolist (b '(\"*Warnings*\" \"*Messages*\"))
+                          (when (get-buffer b)
+                            (with-current-buffer b
+                              (let ((inhibit-read-only t))
+                                (erase-buffer)))))
                         (let ((bc (string-trim (p/buf-str \"*Compile-Log*\"))))
                           (if (string-empty-p bc)
                               (princ \"  byte-compile: OK\n\")
