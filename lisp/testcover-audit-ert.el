@@ -18,9 +18,6 @@
 (require 'testcover-audit-report)
 (require 'testcover-audit-scan)
 
-(defvar ert-after-run-hook nil
-  "Hook run after an ERT test run completes.")
-
 (defun testcover-audit-ert--after-run ()
   "Function added to `ert-after-run-hook'."
   (run-hooks 'testcover-audit-ert-after-run-hook)

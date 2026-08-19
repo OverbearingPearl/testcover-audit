@@ -18,7 +18,6 @@
 (require 'edebug)
 (require 'cl-lib)
 (require 'seq)
-(require 'project)
 
 (defvar testcover-audit--loaded-files nil
   "Alist of (file . function-coverage-entries) pairs.
@@ -51,7 +50,6 @@ or a `(noreturn . INDEX)' marker in each slot."
                 (push (cons symbol coverage) entries))))))
       (nreverse entries))))
 
-;;;###autoload
 (defun testcover-audit-scan--source-files (directory)
   "Return auditable source files under DIRECTORY."
   (let ((files (directory-files-recursively directory "\\.el$")))
@@ -114,14 +112,13 @@ are skipped; use `testcover-audit--loaded-files' to see what was found."
        (- (length files) (length testcover-audit--loaded-files))
        not-open dead-buffer no-instrumented))))
 
-;;;###autoload
 (defun testcover-audit-scan--project-report ()
   "Collect and display existing testcover data for the current project root.
 
 Source files must already have been instrumented and tests must already
 have run.  Use `testcover-audit-instrument-directory' before running tests."
-  (let* ((proj (project-current))
-         (root (if proj (project-root proj) default-directory)))
+  (let ((root (or (locate-dominating-file default-directory ".git")
+                  default-directory)))
     (testcover-audit-scan--scan-directory root)
     (testcover-audit-report--batch-report)))
 
