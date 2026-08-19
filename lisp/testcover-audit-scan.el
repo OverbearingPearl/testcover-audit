@@ -21,7 +21,8 @@
 (require 'project)
 
 (defvar testcover-audit--loaded-files nil
-  "Alist of (file . function-coverage-entries) pairs collected by `testcover-audit-scan-directory'.")
+  "Alist of (file . function-coverage-entries) pairs.
+Collected by `testcover-audit-scan-directory'.")
 
 (defun testcover-audit-scan--coverage-vector-p (vec)
   "Return non-nil if VEC is a non-empty testcover coverage vector.

@@ -28,6 +28,7 @@ repos:
                       (mapconcat (lambda (line) (concat \"    \" line))
                                  (split-string s \"\n\" t) \"\n\"))
                     (defun p/check-file (file)
+                      (setq file (expand-file-name file))
                       (let ((buf (find-file file))
                             (failed nil))
                         (dolist (b '(\"*Warnings*\" \"*Compile-Log*\" \"*Messages*\"))
@@ -45,7 +46,11 @@ repos:
                                 (setq failed t))
                             (princ \"  checkdoc: OK\n\")))
                         ;; package-lint
-                        (ignore-errors (package-lint-current-buffer))
+                        (let ((root (or (locate-dominating-file file \".git\")
+                                        default-directory)))
+                          (setq package-lint-main-file
+                                (expand-file-name \"testcover-audit.el\" root)))
+                        (package-lint-current-buffer)
                         (let ((pl (string-trim (p/buf-str \"*Warnings*\"))))
                           (if (string-empty-p pl)
                               (princ \"  package-lint: OK\n\")
@@ -55,6 +60,7 @@ repos:
                               (princ (p/indent pl))
                               (princ \"\n\"))))
                         ;; byte-compile
+                        (byte-compile-file file)
                         (let ((bc (string-trim (p/buf-str \"*Compile-Log*\"))))
                           (if (string-empty-p bc)
                               (princ \"  byte-compile: OK\n\")

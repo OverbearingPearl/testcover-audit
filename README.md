@@ -4,13 +4,11 @@
 
 ![project](screenshots/screenshot-project.png)
 
-t.b.d.
-
 ## Quick start
 
 <pre>
 ┌───────────────┐   ┌───────────────┐   ┌─────────────────┐
-│ ① instrument │──▶│ ② run tests  │──▶│ ③ view report  │
+│ 1. instrument │──▶│ 2. run tests  │──▶│ 3. view report  │
 └───────────────┘   └───────────────┘   └─────────────────┘
 </pre>
 
