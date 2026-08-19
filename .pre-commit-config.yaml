@@ -69,6 +69,21 @@ repos:
                               (princ \"  byte-compile: warning(s)/error(s)\n\")
                               (princ (p/indent bc))
                               (princ \"\n\"))))
+                        ;; format-check
+                        (let ((format-errors nil)
+                              (content (buffer-string)))
+                          (dolist (line (split-string content \"\n\" t))
+                            (when (string-match-p \"[ \\t]+$\" line)
+                              (push \"trailing whitespace\" format-errors)))
+                          (when (string-match-p \"\\n[ \\t]*\\n[ \\t]*\\n\" content)
+                            (push \"more than one consecutive blank line\" format-errors))
+                          (if format-errors
+                              (progn
+                                (princ \"  format-check: issue(s)\\n\")
+                                (dolist (e (nreverse format-errors))
+                                  (princ (format \"    %s\\n\" e)))
+                                (setq failed t))
+                            (princ \"  format-check: OK\\n\")))
                         (princ (format \"  => %s\n\" (if failed \"FAILED\" \"ok\")))
                         (when (buffer-live-p buf) (kill-buffer buf))
                         (let ((elc (concat file \"c\")))
