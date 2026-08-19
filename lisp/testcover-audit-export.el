@@ -17,28 +17,52 @@
 (require 'testcover-audit-core)
 (require 'testcover-audit-scan)
 
-;;;###autoload
-(defun testcover-audit-export-org (file)
+(defun testcover-audit-export--collected-stats ()
+  "Return aggregate coverage stats for the CI/export commands.
+Return nil when no coverage data is available."
+  (testcover-audit-core--all-files-stats))
+
+(defun testcover-audit-export--export-org (file)
   "Export current or batch report to Org file FILE."
-  (interactive "FExport to Org file: ")
-  ;; TODO: Implement Org export.
-  )
+  (let ((stats (or (testcover-audit-export--collected-stats)
+                   (user-error "No coverage data available"))))
+    (with-temp-file file
+      (insert (format "#+TITLE: testcover-audit Coverage Report\n\n"))
+      (insert (format "* Total coverage: %d%%\n" (plist-get stats :percent)))
+      (insert (format "** Total forms: %d\n" (plist-get stats :total)))
+      (insert (format "   - Covered: %d\n" (plist-get stats :covered)))
+      (insert (format "   - 1value: %d\n" (plist-get stats :onevalue)))
+      (insert (format "   - Uncovered: %d\n" (plist-get stats :uncovered)))))
+  (message "Wrote Org report to %s" file))
 
-;;;###autoload
-(defun testcover-audit-export-json (file)
+(defun testcover-audit-export--export-json (file)
   "Export machine-readable report to JSON file FILE."
-  (interactive "FExport to JSON file: ")
-  ;; TODO: Implement JSON export.
-  )
+  (require 'json)
+  (let ((stats (or (testcover-audit-export--collected-stats)
+                   (user-error "No coverage data available"))))
+    (with-temp-file file
+      (insert (format "{\"total\":%d,\"covered\":%d,\"onevalue\":%d,\"uncovered\":%d,\"percent\":%d}"
+                      (plist-get stats :total)
+                      (plist-get stats :covered)
+                      (plist-get stats :onevalue)
+                      (plist-get stats :uncovered)
+                      (plist-get stats :percent))))
+  (message "Wrote JSON report to %s" file)))
 
-;;;###autoload
-(defun testcover-audit-ci-check ()
+(defun testcover-audit-export--ci-check ()
   "Exit with non-zero status if coverage is below threshold.
 
 Intended for use in CI pipelines."
-  (interactive)
-  ;; TODO: Implement threshold check and exit code.
-  )
+  (let* ((stats (or (testcover-audit-export--collected-stats)
+                    (user-error "No coverage data available")))
+         (percent (plist-get stats :percent))
+         (threshold testcover-audit-ci-threshold))
+    (if (< percent threshold)
+        (progn
+          (message "Coverage too low: %d%% (threshold %d%%)" percent threshold)
+          (when noninteractive
+            (kill-emacs 1)))
+      (message "Coverage OK: %d%%" percent))))
 
 (provide 'testcover-audit-export)
 ;;; testcover-audit-export.el ends here

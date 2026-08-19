@@ -1,19 +1,34 @@
 # testcover-audit
 
-**Testcover Audit** adds quantitative coverage statistics to Emacs' built-in `testcover.el`.  
-It shows the coverage percentage, the counts of covered, uncovered, and 1value forms, and can generate per-file and per-function breakdowns. If you've ever wondered “how much of my code is actually tested?”, testcover-audit gives you the answer in numbers.
+**Testcover Audit** adds quantitative coverage statistics to Emacs' built-in `testcover.el`. It shows coverage percentage, counts of covered / uncovered / 1value forms, and can generate per-file and per-function breakdowns.
+
+## Screenshots
+
+t.b.d.
+
+## Quick start
+
+<pre>
+┌───────────────┐   ┌───────────────┐   ┌─────────────────┐
+│ ① instrument │──▶│ ② run tests  │──▶│ ③ view report  │
+└───────────────┘   └───────────────┘   └─────────────────┘
+</pre>
+
+```elisp
+M-x testcover-audit-instrument-directory RET /path/to/project
+M-x ert RET t
+M-x testcover-audit-project-report
+```
+
+To see the current buffer's coverage percentage in the mode line, enable `testcover-audit-mode`. The `show-*` commands are available after step 3.
 
 ## Features
 
-- **Coverage percentage in the current buffer** – `testcover-audit-mode` displays the current file's coverage in the mode line.
-- **Detailed file report** – `testcover-audit-show-all-stats` opens a dedicated `*Testcover Audit Report*` buffer with a colored table.
-- **Per-function report** – `testcover-audit-show-function-stats` groups forms by function, helping you locate the exact uncovered logic.
-- **Directory scanning** – `testcover-audit-scan-directory` recursively instruments all `.el` files, respects dependency order, and logs errors.
-- **Batch report** – `testcover-audit-batch-report` aggregates statistics for all instrumented files and shows a summary table.
-- **Org and JSON export** – `testcover-audit-export-org` and `testcover-audit-export-json` produce shareable, machine-readable reports.
-- **CI-ready threshold check** – `testcover-audit-ci-check` exits with a non-zero status when coverage is below `testcover-audit-ci-threshold`.
-- **project.el integration** – `testcover-audit-project-report` automatically determines the project root and runs a one-command full analysis.
-- **ERT integration** – `testcover-audit-ert-mode` automatically generates reports after ERT test runs.
+- Mode-line coverage percentage for the current buffer.
+- Per-file, per-function, and aggregate batch reports.
+- Directory scanning and one-command instrumentation.
+- Org/JSON export and CI threshold enforcement.
+- project.el and ERT integration.
 
 ## Installation
 
@@ -23,7 +38,7 @@ It shows the coverage percentage, the counts of covered, uncovered, and 1value f
 M-x package-install RET testcover-audit RET
 ```
 
-### Manual installation
+### Manual
 
 Clone the repository and add both the project root and `lisp/` subdirectory to `load-path`:
 
@@ -35,66 +50,106 @@ Clone the repository and add both the project root and `lisp/` subdirectory to `
 
 ## Usage
 
-### 1. Show statistics for the current buffer
+### The three-step model
+
+testcover-audit only reads coverage data produced by `testcover`. It does not instrument code itself. Every workflow follows the same three steps:
+
+1. **Instrument** source files with `testcover-start`, or use `testcover-audit-instrument-directory`.
+2. **Run your tests** so the instrumented code is actually executed.
+3. **Collect and view** coverage with `testcover-audit-project-report`, or first run `testcover-audit-scan-directory` and then any `show-*` command.
+
+Keep instrumented source buffers open until scanning, because coverage data is read from the testcover-instrumented definitions in those buffers.
+
+### Project workflow
 
 ```elisp
-M-x testcover-audit-show-stats
+;; 1. Instrument all source files once.
+M-x testcover-audit-instrument-directory RET /path/to/project
+
+;; 2. Run your project's tests.
+M-x ert RET t
+
+;; 3. Collect data and show the aggregate report.
+M-x testcover-audit-project-report
 ```
 
-*If the buffer is not yet instrumented, an error message reminds you to run `testcover-start` first.*
+`testcover-audit-project-report` scans the current project root and then displays a batch report. If you only need data collection, use `testcover-audit-scan-directory` directly.
 
-### 2. Show the detailed file report
+### Command summary
 
-```elisp
-M-x testcover-audit-show-all-stats
-```
+| Command | Purpose |
+|---------|---------|
+| `testcover-audit-show-stats` | Coverage % for the current buffer in the echo area. |
+| `testcover-audit-show-all-stats` | Detailed color-coded report for the current file. |
+| `testcover-audit-show-function-stats` | Per-function breakdown for the current file. |
+| `testcover-audit-batch-report` | Aggregate report for all collected files. |
+| `testcover-audit-scan-directory` | Collect coverage from open, instrumented buffers under a directory. |
+| `testcover-audit-project-report` | Scan the current project and show aggregate report. |
+| `testcover-audit-instrument-directory` | Instrument source files under a directory with `testcover-start`. |
+| `testcover-audit-export-org` | Export the aggregate report to an Org file. |
+| `testcover-audit-export-json` | Export the aggregate report to a JSON file. |
+| `testcover-audit-ci-check` | Fail when collected coverage is below `testcover-audit-ci-threshold`. |
+| `testcover-audit-ert-mode` | Automatically show a report after each ERT run. |
 
-The report is displayed in a dedicated buffer and is color-coded according to your thresholds.
-
-### 3. Scan a whole directory
-
-```elisp
-M-x testcover-audit-scan-directory RET /path/to/project
-```
-
-All `.el` files under that directory are instrumented in dependency order, and a progress message is shown.
-
-### 4. Generate a batch report
-
-```elisp
-M-x testcover-audit-batch-report
-```
-
-The buffer shows a table with **Forms**, **Covered**, **1value**, **Uncovered**, and **Coverage** columns, plus a total row.
-
-### 5. Export reports
+### Export reports
 
 ```elisp
 M-x testcover-audit-export-org RET /tmp/coverage.org
 M-x testcover-audit-export-json RET /tmp/coverage.json
 ```
 
-### 6. Use in CI
+Exports use only the snapshot collected by `testcover-audit-scan-directory`. Without a collected snapshot they fail with `No coverage data available`.
+
+### CI usage
+
+`testcover-audit-ci-check` is designed for batch mode. A naive `emacs --batch ... -f testcover-audit-scan-directory` invocation does **not** work: in batch mode nothing opens or instruments source files. Use a small script instead. Save this as `ci-coverage.el`:
 
 ```elisp
-emacs -Q --batch -L . -L lisp \
-      -l testcover-audit \
-      -l testcover-audit-export \
-      -f testcover-audit-scan-directory /path/to/project \
-      -f testcover-audit-ci-check
+;;; ci-coverage.el --- Run project coverage in CI. -*- lexical-binding: t; -*-
+(require 'ert)
+(require 'testcover-audit)
+(setq testcover-audit-ci-threshold 80)
+
+(let* ((root "/path/to/project")
+       (all (directory-files-recursively root "\\.el$")))
+  ;; 1. Load and instrument every non-test .el file.
+  (dolist (file all)
+    (unless (string-match-p "-test\\.el$" file)
+      (with-current-buffer (find-file-noselect file)
+        (require 'testcover)
+        (testcover-start (buffer-file-name)))))
+  ;; 2. Load and run the test files.
+  (dolist (file all)
+    (when (string-match-p "-test\\.el$" file)
+      (load-file file)))
+  (let ((result (ert-run-tests-batch t)))
+    ;; 3. Collect data and enforce the coverage threshold.
+    (testcover-audit-scan-directory root)
+    (unless testcover-audit--loaded-files
+      (error "No coverage data collected - did you run testcover-start?"))
+    (testcover-audit-ci-check)
+    ;; 4. Test failures must also fail CI.
+    (when (> (ert-stats-completed-unexpected result) 0)
+      (kill-emacs 3))))
 ```
 
-If the overall coverage is less than `testcover-audit-ci-threshold`, the process exits with a non-zero status.
+Run it with:
 
-### 7. ERT integration
+```sh
+emacs -Q --batch -L . -L lisp -l ci-coverage.el
+```
+
+### ERT integration
 
 ```elisp
-M-x testcover-audit-ert-mode
+(setq testcover-audit-auto-show-report t
+      testcover-audit-ert-scan-directory "/path/to/project")
+(testcover-audit-ert-mode 1)
 ```
 
-After each ERT run, a coverage report is automatically generated if `testcover-audit-auto-show-report` is non-nil.
+After each ERT run, the configured directory is scanned first and a coverage report is automatically shown when `testcover-audit-auto-show-report` is non-nil.
 
-## Customization
+### Customization
 
 `M-x customize-group RET testcover-audit RET`
 
@@ -104,14 +159,22 @@ After each ERT run, a coverage report is automatically generated if `testcover-a
 | `testcover-audit-yellow-threshold` | 50 | Coverage % below which the report is red. |
 | `testcover-audit-report-format` | `table` | Report format: `table` or `list`. |
 | `testcover-audit-exclude-files` | `("^\\." "\\.elc$")` | Regexps for excluding files from directory scans. |
+| `testcover-audit-test-file-regexp` | `\\(?:\\`\\|[-_]\\)test\\.el\\'` | Regexp matching test files excluded from source coverage. |
 | `testcover-audit-auto-show-report` | `nil` | Automatically display the report after ERT runs. |
+| `testcover-audit-ert-scan-directory` | `nil` | Directory scanned before automatic ERT reports. |
 | `testcover-audit-ci-threshold` | 80 | Minimum coverage % required by `testcover-audit-ci-check`. |
+
+## How scanning works
+
+- `testcover-audit-scan-directory` collects data only from open, instrumented buffers. It never calls `testcover-start` and never loads files.
+- Files that are not open, have dead buffers, or contain no testcover-instrumented definitions are skipped. When any files are skipped, the scan message reports the reason counts.
+- Test files are excluded by default; set `testcover-audit-test-file-regexp` to `nil` to include them.
 
 ## Notes
 
 - This package only works on files that have been instrumented with `testcover-start`.
-- The report colors are based on the current buffer's `default` face, so they integrate well with your theme.
-- The dependency ordering performed by `testcover-audit-scan-directory` uses a simple topological sort on `require` forms, which is sufficient for most Emacs Lisp projects.
+- Report colors are based on the current buffer's `default` face, so they integrate well with your theme.
+- Keep instrumented source buffers open until scanning; after that, reports use the collected snapshot.
 
 ## License
 

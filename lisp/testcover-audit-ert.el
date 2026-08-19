@@ -15,14 +15,19 @@
 
 (require 'testcover-audit-options)
 (require 'testcover-audit-report)
-
-(defvar testcover-audit-ert-after-run-hook nil
-  "Hook run after an ERT test run completes.")
+(require 'testcover-audit-scan)
 
 (defun testcover-audit-ert--after-run ()
   "Function added to `ert-after-run-hook'."
-  ;; TODO: Implement hook function.
-  )
+  (run-hooks 'testcover-audit-ert-after-run-hook)
+  (when testcover-audit-auto-show-report
+    (when testcover-audit-ert-scan-directory
+      (testcover-audit-scan--scan-directory
+       testcover-audit-ert-scan-directory))
+    (testcover-audit-report--batch-report)))
+
+(defvar testcover-audit-ert-after-run-hook nil
+  "Hook run after an ERT test run completes.")
 
 ;;;###autoload
 (define-minor-mode testcover-audit-ert-mode

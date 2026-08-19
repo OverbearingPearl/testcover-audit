@@ -9,10 +9,20 @@
 (require 'ert)
 (require 'testcover-audit-ert)
 
-(ert-deftest testcover-audit-ert-mode-test ()
+(ert-deftest testcover-audit-ert-test--hook ()
+  "Test the package hook runs when the ERT hook callback is invoked."
+  (let (called)
+    (let ((testcover-audit-ert-after-run-hook
+           (list (lambda () (setq called t)))))
+      (testcover-audit-ert--after-run)
+      (should called))))
+
+(ert-deftest testcover-audit-ert-test--mode ()
   "Test that ERT mode toggles hooks correctly."
-  ;; TODO: Implement mode toggle test.
-  )
+  (testcover-audit-ert-mode 1)
+  (should (member #'testcover-audit-ert--after-run ert-after-run-hook))
+  (testcover-audit-ert-mode -1)
+  (should-not (member #'testcover-audit-ert--after-run ert-after-run-hook)))
 
 (provide 'testcover-audit-ert-test)
 ;;; testcover-audit-ert-test.el ends here

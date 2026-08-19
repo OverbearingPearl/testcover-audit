@@ -31,10 +31,10 @@
 ;;     Show an aggregate table for all instrumented files.
 ;;
 ;;   testcover-audit-scan-directory
-;;     Recursively instrument all .el files in a directory.
+;;     Collect coverage from instrumented definitions in open source buffers.
 ;;
 ;;   testcover-audit-project-report
-;;     Run a full coverage analysis for the current project.
+;;     Collect coverage from instrumented definitions in the current project.
 ;;
 ;;   testcover-audit-export-org
 ;;     Export a report in Org syntax.
@@ -49,7 +49,20 @@
 ;; percentage in the mode line.  Enable testcover-audit-ert-mode to
 ;; automatically generate a report after each ERT test run.
 ;;
+;; Command groups:
+;;   - Daily use: testcover-audit-show-stats, show-all-stats,
+;;     show-function-stats, batch-report, project-report, scan-directory
+;;   - Export/CI: testcover-audit-export-org, export-json, ci-check
+;;   - Tooling: testcover-audit-instrument-directory
+;;
+;; The number of commands is manageable because each group has a clear
+;; purpose.  For daily work, `testcover-audit-project-report' and the
+;; `show-*' series are sufficient.
+;;
 ;; All user-facing configuration is grouped under `testcover-audit'.
+;;
+;; Internal development helpers (`testcover-audit--reload-modules',
+;; `testcover-audit--run-tests') are not part of the user-facing API.
 
 ;;; Code:
 
@@ -77,17 +90,41 @@ the current buffer in the mode line."
   :lighter " PTcov"
   :global nil
   (if testcover-audit-mode
-      (testcover-audit--refresh-mode-line)
-    (kill-local-variable 'mode-line-format)))
+      (progn
+        (setq-local testcover-audit--saved-mode-line-format
+                    (and (local-variable-p 'mode-line-format)
+                         mode-line-format))
+        (testcover-audit--refresh-mode-line))
+    (when (boundp 'testcover-audit--saved-mode-line-format)
+      (if testcover-audit--saved-mode-line-format
+          (setq-local mode-line-format
+                      testcover-audit--saved-mode-line-format)
+        (kill-local-variable 'mode-line-format))
+      (kill-local-variable 'testcover-audit--saved-mode-line-format)
+      (force-mode-line-update))))
+
+(defvar-local testcover-audit--saved-mode-line-format nil
+  "Mode-line format saved before enabling `testcover-audit-mode'.")
 
 (defun testcover-audit--refresh-mode-line ()
   "Refresh the mode line to show coverage statistics."
-  ;; TODO: Implement mode line construction from collected stats.
-  )
+  (let* ((stats (and (buffer-file-name)
+                     (testcover-audit-core--file-stats
+                      (file-truename (expand-file-name (buffer-file-name))))))
+         (percent (and stats (plist-get stats :percent)))
+         (coverage-str (cond ((null percent) "--")
+                             (t (format "%d%%" percent))))
+         (face (cond ((null percent) 'default)
+                     (t (testcover-audit-report--face-for-percent percent)))))
+    (setq mode-line-format
+          (list (propertize (concat " PCTcov " coverage-str)
+                            'face face
+                            'help-echo "testcover-audit coverage")
+                (default-value 'mode-line-format)))
+    (force-mode-line-update)))
 
-(defun testcover-audit-reload-modules ()
+(defun testcover-audit--reload-modules ()
   "Reload testcover-audit modules for updated code."
-  (interactive)
   (let* ((root-dir testcover-audit--package-root)
          (lisp-dir (expand-file-name "lisp" root-dir))
          (el-files (directory-files lisp-dir nil "\\.el$")))
@@ -121,13 +158,12 @@ the current buffer in the mode line."
           (load-file el-path))))
     (message "testcover-audit modules reloaded.")))
 
-(defun testcover-audit-run-tests ()
+(defun testcover-audit--run-tests ()
   "Run all testcover-audit test suites."
-  (interactive)
   (require 'ert)
   (ert-delete-all-tests)
   ;; Reload all modules first to ensure latest code is used
-  (testcover-audit-reload-modules)
+  (testcover-audit--reload-modules)
   ;; Load test files automatically from the lisp directory
   (let ((test-dir (expand-file-name "lisp" testcover-audit--package-root)))
     (dolist (file (directory-files test-dir nil "testcover-audit-.*-test\\.el$"))
@@ -138,6 +174,74 @@ the current buffer in the mode line."
   (if noninteractive
       (ert-run-tests-batch-and-exit)
     (ert t)))
+
+;;; The following commands are defined in the main module as the
+;;; single entry point for user-facing API.  Submodules keep the
+;;; non‑interactive implementations with internal double-dash names;
+;;; these wrappers add the `interactive' spec that makes them
+;;; invokable with M-x.
+
+;;;###autoload
+(defun testcover-audit-export-org (file)
+  "Export current or batch report to Org file FILE."
+  (interactive "FExport to Org file: ")
+  (testcover-audit-export--export-org file))
+
+;;;###autoload
+(defun testcover-audit-export-json (file)
+  "Export machine-readable report to JSON file FILE."
+  (interactive "FExport to JSON file: ")
+  (testcover-audit-export--export-json file))
+
+;;;###autoload
+(defun testcover-audit-ci-check ()
+  "Exit with non-zero status if coverage is below threshold.
+
+Intended for use in CI pipelines."
+  (interactive)
+  (testcover-audit-export--ci-check))
+
+;;;###autoload
+(defun testcover-audit-show-stats ()
+  "Show brief coverage statistics for the current buffer."
+  (interactive)
+  (testcover-audit-report--show-stats))
+
+;;;###autoload
+(defun testcover-audit-show-all-stats ()
+  "Show detailed coverage report in a dedicated buffer."
+  (interactive)
+  (testcover-audit-report--show-all-stats))
+
+;;;###autoload
+(defun testcover-audit-show-function-stats ()
+  "Show per-function coverage report."
+  (interactive)
+  (testcover-audit-report--show-function-stats))
+
+;;;###autoload
+(defun testcover-audit-batch-report ()
+  "Show coverage report for all instrumented files."
+  (interactive)
+  (testcover-audit-report--batch-report))
+
+;;;###autoload
+(defun testcover-audit-instrument-directory (directory)
+  "Instrument source files under DIRECTORY with `testcover-start'."
+  (interactive "DInstrument source directory: ")
+  (testcover-audit-scan--instrument-directory directory))
+
+;;;###autoload
+(defun testcover-audit-scan-directory (directory)
+  "Recursively scan DIRECTORY and collect coverage data."
+  (interactive "DDirectory: ")
+  (testcover-audit-scan--scan-directory directory))
+
+;;;###autoload
+(defun testcover-audit-project-report ()
+  "Collect and display existing testcover data for the current project root."
+  (interactive)
+  (testcover-audit-scan--project-report))
 
 (provide 'testcover-audit)
 ;;; testcover-audit.el ends here

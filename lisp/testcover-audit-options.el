@@ -37,6 +37,21 @@
   :type '(repeat regexp)
   :group 'testcover-audit)
 
+(defcustom testcover-audit-test-file-regexp
+  "\\(?:\\`\\|[-_]\\)test\\.el\\'"
+  "Regexp matching test files excluded from source coverage collection.
+
+Set this to nil when test files themselves should be included in coverage."
+  :type '(choice (const :tag "Do not exclude test files" nil) regexp)
+  :group 'testcover-audit)
+
+(defcustom testcover-audit-ert-scan-directory nil
+  "Directory scanned before automatic ERT coverage reports.
+
+When nil, `testcover-audit-ert-mode' does not scan automatically."
+  :type '(choice directory (const :tag "Do not scan automatically" nil))
+  :group 'testcover-audit)
+
 (defcustom testcover-audit-auto-show-report nil
   "Whether to automatically display the report after ERT runs."
   :type 'boolean
