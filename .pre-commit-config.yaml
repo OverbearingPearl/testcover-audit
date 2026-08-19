@@ -124,9 +124,13 @@ repos:
                               (banned-line-num 0))
                           (dolist (banned-line (split-string (buffer-string) \"\n\" t))
                             (setq banned-line-num (1+ banned-line-num))
-                            (when (string-match-p \"declare-function\" banned-line)
+                            (cond
+                             ((string-match-p \"declare-function\" banned-line)
                               (push (format \"banned construct `declare-function` (line %d)\" banned-line-num)
-                                    banned-errors)))
+                                    banned-errors))
+                             ((string-match-p \";; package-lint: disable\" banned-line)
+                              (push (format \"banned construct `;; package-lint: disable` (line %d)\" banned-line-num)
+                                    banned-errors))))
                           (if banned-errors
                               (progn
                                 (princ \"  banned-construct: issue(s)\\n\")
