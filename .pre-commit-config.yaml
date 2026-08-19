@@ -106,6 +106,21 @@ repos:
                                   (princ (format \"    %s\\n\" e)))
                                 (setq failed t))
                             (princ \"  format-check: OK\\n\")))
+                        ;; banned-construct check
+                        (let ((banned-errors nil)
+                              (banned-line-num 0))
+                          (dolist (banned-line (split-string (buffer-string) \"\n\" t))
+                            (setq banned-line-num (1+ banned-line-num))
+                            (when (string-match-p \"declare-function\" banned-line)
+                              (push (format \"banned construct `declare-function` (line %d)\" banned-line-num)
+                                    banned-errors)))
+                          (if banned-errors
+                              (progn
+                                (princ \"  banned-construct: issue(s)\\n\")
+                                (dolist (e (nreverse banned-errors))
+                                  (princ (format \"    %s\\n\" e)))
+                                (setq failed t))
+                            (princ \"  banned-construct: OK\\n\")))
                         (princ (format \"  => %s\n\" (if failed \"FAILED\" \"ok\")))
                         (when (buffer-live-p buf) (kill-buffer buf))
                         (let ((elc (concat file \"c\")))
