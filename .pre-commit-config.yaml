@@ -50,9 +50,12 @@ repos:
                                         default-directory)))
                           (setq package-lint-main-file
                                 (expand-file-name \"testcover-audit.el\" root)))
+                        (when (get-buffer \"*Package-Lint*\")
+                          (kill-buffer \"*Package-Lint*\"))
                         (package-lint-current-buffer)
-                        (let ((pl (string-trim (p/buf-str \"*Warnings*\"))))
-                          (if (string-empty-p pl)
+                        (let ((pl (string-trim (p/buf-str \"*Package-Lint*\"))))
+                          (if (or (string-empty-p pl)
+                                  (string= pl \"No issues found.\"))
                               (princ \"  package-lint: OK\n\")
                             (progn
                               (setq failed t)
@@ -71,12 +74,31 @@ repos:
                               (princ \"\n\"))))
                         ;; format-check
                         (let ((format-errors nil)
-                              (content (buffer-string)))
-                          (dolist (line (split-string content \"\n\" t))
-                            (when (string-match-p \"[ \\t]+$\" line)
-                              (push \"trailing whitespace\" format-errors)))
-                          (when (string-match-p \"\\n[ \\t]*\\n[ \\t]*\\n\" content)
-                            (push \"more than one consecutive blank line\" format-errors))
+                              (lines (split-string (buffer-string) \"\n\" t))
+                              (line-num 0)
+                              (blank-run 0)
+                              (last-blank-start nil))
+                          (dolist (line lines)
+                            (setq line-num (1+ line-num))
+                            (when (and (not (string-match-p \"^[ \\t]*$\" line))
+                                       (string-match-p \"[ \\t]+$\" line))
+                              (push (format \"trailing whitespace (line %d)\" line-num)
+                                    format-errors))
+                            (if (string-match-p \"^[ \\t]*$\" line)
+                                (progn
+                                  (when (= blank-run 0)
+                                    (setq last-blank-start line-num))
+                                  (setq blank-run (1+ blank-run)))
+                              (progn
+                                (when (> blank-run 1)
+                                  (push (format \"more than one consecutive blank line (line %d)\"
+                                                last-blank-start)
+                                        format-errors))
+                                (setq blank-run 0))))
+                          (when (> blank-run 1)
+                            (push (format \"more than one consecutive blank line (line %d)\"
+                                          last-blank-start)
+                                  format-errors))
                           (if format-errors
                               (progn
                                 (princ \"  format-check: issue(s)\\n\")
