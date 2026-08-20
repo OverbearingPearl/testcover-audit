@@ -18,7 +18,7 @@ M-x ert RET t
 M-x testcover-audit-project-report
 ```
 
-To see the current buffer's coverage percentage in the mode line, enable `testcover-audit-mode`. The `show-*` commands are available after step 3.
+To see the current buffer's coverage percentage in the mode line, enable `testcover-audit-mode`. The `show-*` commands are available as soon as the source buffer is instrumented and tests have run.
 
 ## Features
 
@@ -54,9 +54,9 @@ testcover-audit only reads coverage data produced by `testcover`. It does not in
 
 1. **Instrument** source files with `testcover-start`, or use `testcover-audit-instrument-directory`.
 2. **Run your tests** so the instrumented code is actually executed.
-3. **Collect and view** coverage with `testcover-audit-project-report`, or first run `testcover-audit-scan-directory` and then any `show-*` command.
+3. **View** coverage. The `show-*` commands read live coverage directly from the current buffer's testcover-instrumented definitions. For project-wide reports, run `testcover-audit-project-report`, or first `testcover-audit-scan-directory` and then `testcover-audit-batch-report`.
 
-Keep instrumented source buffers open until scanning, because coverage data is read from the testcover-instrumented definitions in those buffers.
+Keep instrumented source buffers open while viewing coverage, because live testcover data is read from the testcover-instrumented definitions in those buffers.
 
 ### Project workflow
 
@@ -77,11 +77,11 @@ M-x testcover-audit-project-report
 
 | Command | Purpose |
 |---------|---------|
-| `testcover-audit-show-stats` | Coverage % for the current buffer in the echo area. |
-| `testcover-audit-show-all-stats` | Detailed color-coded report for the current file. |
-| `testcover-audit-show-function-stats` | Per-function breakdown for the current file. |
-| `testcover-audit-batch-report` | Aggregate report for all collected files. |
-| `testcover-audit-scan-directory` | Collect coverage from open, instrumented buffers under a directory. |
+| `testcover-audit-show-stats` | Coverage % for the current buffer in the echo area (live data). |
+| `testcover-audit-show-all-stats` | Detailed color-coded report for the current file (live data). |
+| `testcover-audit-show-function-stats` | Per-function breakdown for the current file (live data). |
+| `testcover-audit-batch-report` | Aggregate report for all scan-collected files. |
+| `testcover-audit-scan-directory` | Collect a coverage snapshot from open, instrumented buffers under a directory. |
 | `testcover-audit-project-report` | Scan the current project and show aggregate report. |
 | `testcover-audit-instrument-directory` | Instrument source files under a directory with `testcover-start`. |
 | `testcover-audit-export-org` | Export the aggregate report to an Org file. |
@@ -164,7 +164,8 @@ After each ERT run, the configured directory is scanned first and a coverage rep
 
 ## How scanning works
 
-- `testcover-audit-scan-directory` collects data only from open, instrumented buffers. It never calls `testcover-start` and never loads files.
+- The `show-*` commands (`show-stats`, `show-all-stats`, `show-function-stats`) read live testcover data directly from the current buffer; they do not require a scan.
+- `testcover-audit-scan-directory` collects a snapshot from open, instrumented buffers into `testcover-audit--loaded-files` for batch/export/CI commands. It never calls `testcover-start` and never loads files.
 - Files that are not open, have dead buffers, or contain no testcover-instrumented definitions are skipped. When any files are skipped, the scan message reports the reason counts.
 - Test files are excluded by default; set `testcover-audit-test-file-regexp` to `nil` to include them.
 
@@ -172,7 +173,7 @@ After each ERT run, the configured directory is scanned first and a coverage rep
 
 - This package only works on files that have been instrumented with `testcover-start`.
 - Report colors are based on the current buffer's `default` face, so they integrate well with your theme.
-- Keep instrumented source buffers open until scanning; after that, reports use the collected snapshot.
+- Keep instrumented source buffers open while viewing live `show-*` reports. Batch/export/CI commands use the snapshot collected by `testcover-audit-scan-directory` or `testcover-audit-project-report`.
 
 ## License
 

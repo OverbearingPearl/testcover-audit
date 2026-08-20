@@ -108,9 +108,7 @@ the current buffer in the mode line."
 
 (defun testcover-audit--refresh-mode-line ()
   "Refresh the mode line to show coverage statistics."
-  (let* ((stats (and (buffer-file-name)
-                     (testcover-audit-core--file-stats
-                      (file-truename (expand-file-name (buffer-file-name))))))
+  (let* ((stats (testcover-audit-report--stats-for-file (buffer-file-name)))
          (percent (and stats (plist-get stats :percent)))
          (coverage-str (cond ((null percent) "--")
                              (t (format "%d%%" percent))))

@@ -127,6 +127,72 @@
         (kill-buffer buf))
       (delete-directory dir t))))
 
+(ert-deftest testcover-audit-scan-test--buffer-function-stats-live ()
+  "Buffer-function-stats reads live coverage without touching loaded-files."
+  (let* ((dir (make-temp-file "tca-scan-live-fn" t))
+         (file (expand-file-name "foo.el" dir))
+         (symbol (make-symbol "tca-live-fn"))
+         (buf nil))
+    (unwind-protect
+        (progn
+          (with-temp-file file (insert ";; dummy"))
+          (setq buf (find-file-noselect file))
+          (with-current-buffer buf
+            (setq-local edebug-form-data
+                        (list (edebug--make-form-data-entry
+                               symbol
+                               (copy-marker (point-min))
+                               (copy-marker (point-max))))))
+          (put symbol 'edebug-behavior 'testcover)
+          (put symbol 'edebug-coverage
+               [edebug-unknown testcover-1value
+                edebug-ok-coverage edebug-ok-coverage])
+          (let ((rows (testcover-audit-scan--buffer-function-stats file)))
+            (should (= (length rows) 1))
+            (should (string= (plist-get (car rows) :name)
+                             (symbol-name symbol)))
+            (should (= (plist-get (car rows) :percent) 75)))
+          (should-not (assoc (file-truename file)
+                             testcover-audit--loaded-files)))
+      (cl-remprop symbol 'edebug-behavior)
+      (cl-remprop symbol 'edebug-coverage)
+      (when (buffer-live-p buf)
+        (kill-buffer buf))
+      (delete-directory dir t))))
+
+(ert-deftest testcover-audit-scan-test--buffer-stats-live ()
+  "Buffer-stats aggregates live coverage from the visiting buffer."
+  (let* ((dir (make-temp-file "tca-scan-live-stats" t))
+         (file (expand-file-name "foo.el" dir))
+         (symbol (make-symbol "tca-live-stats-fn"))
+         (buf nil))
+    (unwind-protect
+        (progn
+          (with-temp-file file (insert ";; dummy"))
+          (setq buf (find-file-noselect file))
+          (with-current-buffer buf
+            (setq-local edebug-form-data
+                        (list (edebug--make-form-data-entry
+                               symbol
+                               (copy-marker (point-min))
+                               (copy-marker (point-max))))))
+          (put symbol 'edebug-behavior 'testcover)
+          (put symbol 'edebug-coverage
+               [edebug-unknown testcover-1value
+                edebug-ok-coverage edebug-ok-coverage])
+          (let ((stats (testcover-audit-scan--buffer-stats file)))
+            (should stats)
+            (should (= (plist-get stats :total) 4))
+            (should (= (plist-get stats :covered) 2))
+            (should (= (plist-get stats :onevalue) 1))
+            (should (= (plist-get stats :uncovered) 1))
+            (should (= (plist-get stats :percent) 75))))
+      (cl-remprop symbol 'edebug-behavior)
+      (cl-remprop symbol 'edebug-coverage)
+      (when (buffer-live-p buf)
+        (kill-buffer buf))
+      (delete-directory dir t))))
+
 (ert-deftest testcover-audit-scan-test--instrument-directory ()
   "Instrument-directory instruments source files but skips test/excluded files."
   (let* ((dir (make-temp-file "tca-instr" t))

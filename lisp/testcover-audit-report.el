@@ -19,14 +19,15 @@
 (require 'cl-lib)
 
 (defun testcover-audit-report--stats-for-file (file)
-  "Return coverage stats for FILE if data has been collected.
+  "Return coverage stats for FILE.
 
-Prefer the current buffer's coverage vector (found via
-`testcover-audit--buffer-coverage'); otherwise use
-`testcover-audit-core--file-stats' which looks into
-`testcover-audit--loaded-files'.  Return nil when no data is available."
+Prefer live testcover data from the buffer visiting FILE; fall back
+to the `testcover-audit--loaded-files' snapshot collected by
+`testcover-audit-scan-directory'.  Return nil when no data is available."
   (let* ((key (and file (file-truename (expand-file-name file))))
-         (stats (and key (testcover-audit-core--file-stats key))))
+         (stats (and key
+                     (or (testcover-audit-scan--buffer-stats file)
+                         (testcover-audit-core--file-stats key)))))
     stats))
 
 (defun testcover-audit-report--show-stats ()
@@ -38,7 +39,7 @@ Prefer the current buffer's coverage vector (found via
                  (plist-get stats :percent)
                  (plist-get stats :covered)
                  (plist-get stats :total))
-      (message "No coverage data for %s.  Run `testcover-start', run your tests, then `testcover-audit-scan-directory'."
+      (message "No coverage data for %s.  Run `testcover-start', run your tests, and keep the buffer open."
                (or file "(buffer)")))))
 
 (defun testcover-audit-report--show-all-stats ()
@@ -46,7 +47,7 @@ Prefer the current buffer's coverage vector (found via
   (let* ((file (buffer-file-name))
          (stats (testcover-audit-report--stats-for-file file)))
     (if (null stats)
-        (message "No coverage data for %s.\nRun `testcover-start', run your tests, then `testcover-audit-scan-directory'."
+        (message "No coverage data for %s.\nRun `testcover-start', run your tests, and keep the buffer open."
                  (or file "(buffer)"))
       (with-current-buffer (get-buffer-create "*Testcover Audit Report*")
         (erase-buffer)
@@ -62,10 +63,12 @@ Prefer the current buffer's coverage vector (found via
 (defun testcover-audit-report--show-function-stats ()
   "Show per-function coverage report."
   (let* ((file (buffer-file-name))
-         (rows (and file (testcover-audit-core--function-stats
-                          (file-truename (expand-file-name file))))))
+         (rows (and file
+                    (or (testcover-audit-scan--buffer-function-stats file)
+                        (testcover-audit-core--function-stats
+                         (file-truename (expand-file-name file)))))))
     (if (null rows)
-        (message "No coverage data for %s.\nRun `testcover-start', run your tests, then `testcover-audit-scan-directory'."
+        (message "No coverage data for %s.\nRun `testcover-start', run your tests, and keep the buffer open."
                  (or file "(buffer)"))
       (with-current-buffer (get-buffer-create "*Testcover Function Report*")
         (erase-buffer)

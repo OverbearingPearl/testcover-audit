@@ -50,6 +50,32 @@ or a `(noreturn . INDEX)' marker in each slot."
                 (push (cons symbol coverage) entries))))))
       (nreverse entries))))
 
+(defun testcover-audit-scan--buffer-function-stats (file)
+  "Return per-function coverage stats for FILE from its visiting buffer.
+
+Reads live testcover data from the buffer visiting FILE without
+touching `testcover-audit--loaded-files'.  Return nil when FILE has no
+visiting buffer or no testcover-instrumented definitions."
+  (let* ((key (file-truename (expand-file-name file)))
+         (buf (find-buffer-visiting key)))
+    (when buf
+      (let ((entries (testcover-audit-scan--buffer-covered-definitions buf)))
+        (and entries
+             (testcover-audit-core--file-function-stats
+              (cons key entries)))))))
+
+(defun testcover-audit-scan--buffer-stats (file)
+  "Return live coverage stats for FILE from its visiting buffer.
+
+Unlike `testcover-audit-scan--scan-directory', this reads testcover
+coverage directly from the buffer visiting FILE and does not touch
+`testcover-audit--loaded-files'.
+
+Return nil when FILE has no visiting buffer or no testcover-instrumented
+definitions."
+  (let ((fn-stats (testcover-audit-scan--buffer-function-stats file)))
+    (and fn-stats (testcover-audit-core--aggregate fn-stats))))
+
 (defun testcover-audit-scan--source-files (directory)
   "Return auditable source files under DIRECTORY."
   (let ((files (directory-files-recursively directory "\\.el$")))

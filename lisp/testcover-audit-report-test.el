@@ -8,6 +8,7 @@
 
 (require 'ert)
 (require 'cl-lib)
+(require 'edebug)
 (require 'testcover-audit-report)
 
 (ert-deftest testcover-audit-report-test--format-table ()
@@ -145,6 +146,91 @@
                  (push (apply #'format format-string args) msg-captured))))
       (testcover-audit-report--batch-report))
     (should (seq-some (lambda (m) (string-match-p "No coverage data collected" m)) msg-captured))))
+
+(ert-deftest testcover-audit-report-test--stats-for-file-live ()
+  "Stats-for-file prefers live buffer data over the scan snapshot."
+  (let* ((file (make-temp-file "tca-live-stats" nil ".el"))
+         (symbol (make-symbol "tca-live-stats-fn"))
+         (buf (find-file-noselect file)))
+    (unwind-protect
+        (with-current-buffer buf
+          (setq-local edebug-form-data
+                      (list (edebug--make-form-data-entry
+                             symbol
+                             (copy-marker (point-min))
+                             (copy-marker (point-max)))))
+          (put symbol 'edebug-behavior 'testcover)
+          (put symbol 'edebug-coverage
+               [edebug-ok-coverage edebug-ok-coverage edebug-ok-coverage])
+          ;; Stale snapshot must not shadow live data.
+          (let ((testcover-audit--loaded-files
+                 (list (cons (file-truename file)
+                             (list (cons symbol [edebug-unknown edebug-unknown]))))))
+            (let ((stats (testcover-audit-report--stats-for-file file)))
+              (should (= (plist-get stats :total) 3))
+              (should (= (plist-get stats :percent) 100)))))
+      (cl-remprop symbol 'edebug-behavior)
+      (cl-remprop symbol 'edebug-coverage)
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file file))))
+
+(ert-deftest testcover-audit-report-test--show-all-stats-live ()
+  "Show-all-stats works from live buffer data without a scan snapshot."
+  (let* ((file (make-temp-file "tca-live-all" nil ".el"))
+         (symbol (make-symbol "tca-live-all-fn"))
+         (buf (find-file-noselect file))
+         (display-buffer-called nil))
+    (unwind-protect
+        (with-current-buffer buf
+          (setq-local edebug-form-data
+                      (list (edebug--make-form-data-entry
+                             symbol
+                             (copy-marker (point-min))
+                             (copy-marker (point-max)))))
+          (put symbol 'edebug-behavior 'testcover)
+          (put symbol 'edebug-coverage
+               [edebug-unknown testcover-1value
+                edebug-ok-coverage edebug-ok-coverage])
+          (let ((testcover-audit--loaded-files nil))
+            (cl-letf (((symbol-function 'display-buffer)
+                       (lambda (&rest _) (setq display-buffer-called t))))
+              (testcover-audit-report--show-all-stats)))
+          (should display-buffer-called)
+          (with-current-buffer "*Testcover Audit Report*"
+            (should (string-match-p "75" (buffer-string)))))
+      (cl-remprop symbol 'edebug-behavior)
+      (cl-remprop symbol 'edebug-coverage)
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file file))))
+
+(ert-deftest testcover-audit-report-test--show-function-stats-live ()
+  "Show-function-stats lists live functions without a scan snapshot."
+  (let* ((file (make-temp-file "tca-live-fn" nil ".el"))
+         (symbol (make-symbol "tca-live-fn"))
+         (buf (find-file-noselect file))
+         (display-buffer-called nil))
+    (unwind-protect
+        (with-current-buffer buf
+          (setq-local edebug-form-data
+                      (list (edebug--make-form-data-entry
+                             symbol
+                             (copy-marker (point-min))
+                             (copy-marker (point-max)))))
+          (put symbol 'edebug-behavior 'testcover)
+          (put symbol 'edebug-coverage
+               [edebug-unknown edebug-unknown edebug-unknown])
+          (let ((testcover-audit--loaded-files nil))
+            (cl-letf (((symbol-function 'display-buffer)
+                       (lambda (&rest _) (setq display-buffer-called t))))
+              (testcover-audit-report--show-function-stats)))
+          (should display-buffer-called)
+          (with-current-buffer "*Testcover Function Report*"
+            (should (string-match-p "tca-live-fn" (buffer-string)))
+            (should (string-match-p "0%" (buffer-string)))))
+      (cl-remprop symbol 'edebug-behavior)
+      (cl-remprop symbol 'edebug-coverage)
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file file))))
 
 (provide 'testcover-audit-report-test)
 ;;; testcover-audit-report-test.el ends here
