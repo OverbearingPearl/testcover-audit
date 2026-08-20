@@ -127,5 +127,47 @@
         (kill-buffer buf))
       (delete-directory dir t))))
 
+(ert-deftest testcover-audit-scan-test--instrument-directory ()
+  "Instrument-directory instruments source files but skips test/excluded files."
+  (let* ((dir (make-temp-file "tca-instr" t))
+         (src1 (expand-file-name "src1.el" dir))
+         (src2 (expand-file-name "src2.el" dir))
+         (test-file (expand-file-name "foo-test.el" dir))
+         (calls nil))
+    (unwind-protect
+        (progn
+          (with-temp-file src1 (insert ";; dummy"))
+          (with-temp-file src2 (insert ";; dummy"))
+          (with-temp-file test-file (insert ";; dummy"))
+          (cl-letf (((symbol-function 'testcover-start)
+                     (lambda (file) (push file calls))))
+            (let ((testcover-audit-exclude-files '("^\\."))
+                  (testcover-audit-test-file-regexp "\\(?:\\`\\|[-_]\\)test\\.el\\'"))
+              (testcover-audit-scan--instrument-directory dir)))
+          (should (= (length calls) 2))
+          (should (seq-some (lambda (c) (string-match-p "src1.el" c)) calls))
+          (should (seq-some (lambda (c) (string-match-p "src2.el" c)) calls))
+          (should-not (seq-some (lambda (c) (string-match-p "foo-test.el" c)) calls)))
+      (delete-directory dir t))))
+
+(ert-deftest testcover-audit-scan-test--project-report ()
+  "Project-report scans root and generates batch report."
+  (let* ((dir (make-temp-file "tca-proj" t))
+         (git-dir (expand-file-name ".git" dir)))
+    (unwind-protect
+        (progn
+          (make-directory git-dir)
+          (let ((default-directory dir)
+                (scan-called nil)
+                (report-called nil))
+            (cl-letf (((symbol-function 'testcover-audit-scan--scan-directory)
+                       (lambda (_) (setq scan-called t)))
+                      ((symbol-function 'testcover-audit-report--batch-report)
+                       (lambda () (setq report-called t))))
+              (testcover-audit-scan--project-report))
+            (should scan-called)
+            (should report-called)))
+      (delete-directory dir t))))
+
 (provide 'testcover-audit-scan-test)
 ;;; testcover-audit-scan-test.el ends here

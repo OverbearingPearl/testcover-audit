@@ -78,5 +78,28 @@
               (should (= percent 75)))))
       (delete-file tmp))))
 
+(ert-deftest testcover-audit-export-test--ci-check-success ()
+  "Test ci-check passes when coverage meets threshold."
+  (let ((testcover-audit--loaded-files
+         '(("a.el" . ((fn . [edebug-ok-coverage edebug-ok-coverage])))))
+        (testcover-audit-ci-threshold 80)
+        (kill-emacs-called nil))
+    (cl-letf (((symbol-function 'kill-emacs)
+               (lambda (&optional code) (setq kill-emacs-called code))))
+      (testcover-audit-export--ci-check)
+      (should-not kill-emacs-called))))
+
+(ert-deftest testcover-audit-export-test--ci-check-failure ()
+  "Test ci-check fails and kills Emacs in noninteractive mode when below threshold."
+  (let ((testcover-audit--loaded-files
+         '(("a.el" . ((fn . [edebug-unknown edebug-unknown])))))
+        (testcover-audit-ci-threshold 80)
+        (kill-emacs-called nil))
+    (cl-letf (((symbol-function 'kill-emacs)
+               (lambda (&optional code) (setq kill-emacs-called code))))
+      (let ((noninteractive t))
+        (testcover-audit-export--ci-check))
+      (should (= kill-emacs-called 1)))))
+
 (provide 'testcover-audit-export-test)
 ;;; testcover-audit-export-test.el ends here

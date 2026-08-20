@@ -72,7 +72,7 @@ Prefer the current buffer's coverage vector (found via
         (insert (testcover-audit-report--format-table
                  (mapcar (lambda (s)
                            (list (plist-get s :name)
-                                 (plist-get s :percent)))
+                                 (format "%d%%" (or (plist-get s :percent) 0))))
                          rows)))
         (display-buffer (current-buffer))))))
 
@@ -168,6 +168,13 @@ Prefer the current buffer's coverage vector (found via
           (goto-char (point-min))
           (display-buffer (current-buffer)))))))
 
+(defun testcover-audit-report--format-cell (value)
+  "Return VALUE as a string for table display.
+Strings are used verbatim; all other values use `prin1-to-string'."
+  (if (stringp value)
+      value
+    (prin1-to-string value)))
+
 (defun testcover-audit-report--format-table (rows)
   "Format ROWS as an aligned table string."
   (let ((width0 0)
@@ -175,16 +182,16 @@ Prefer the current buffer's coverage vector (found via
         (lines))
     ;; Compute widths.
     (dolist (row rows)
-      (let ((cell0 (prin1-to-string (nth 0 row)))
-            (cell1 (prin1-to-string (nth 1 row))))
+      (let ((cell0 (testcover-audit-report--format-cell (nth 0 row)))
+            (cell1 (testcover-audit-report--format-cell (nth 1 row))))
         (when (> (length cell0) width0)
           (setq width0 (length cell0)))
         (when (> (length cell1) width1)
           (setq width1 (length cell1)))))
     ;; Build lines.
     (dolist (row rows)
-      (let ((cell0 (prin1-to-string (nth 0 row)))
-            (cell1 (prin1-to-string (nth 1 row))))
+      (let ((cell0 (testcover-audit-report--format-cell (nth 0 row)))
+            (cell1 (testcover-audit-report--format-cell (nth 1 row))))
         (push (format (format "%%-%ds  %%-%ds" width0 width1)
                       cell0 cell1)
               lines)))
