@@ -140,31 +140,35 @@ Prefer the current buffer's coverage vector (found via
                                           (>= (or (plist-get s :percent) 0) 100))
                                         funcs)))
                        (dolist (s low-funcs)
-                         (let ((pct (or (plist-get s :percent) 0)))
+                         (let ((pct (or (plist-get s :percent) 0))
+                               (onevalue (or (plist-get s :onevalue) 0)))
                            (push (list fname
                                        (or (plist-get s :name) "<anonymous>")
+                                       onevalue
                                        pct)
                                  func-rows)))))
             (setq func-rows
                   (sort func-rows
                         (lambda (a b)
-                          (or (< (nth 2 a) (nth 2 b))
-                              (and (= (nth 2 a) (nth 2 b))
+                          (or (< (nth 3 a) (nth 3 b))
+                              (and (= (nth 3 a) (nth 3 b))
                                    (string< (car a) (car b)))))))
             (when func-rows
               (insert "\nFunction-level breakdown\n")
               (let* ((func-file-width (max 8 (apply #'max (mapcar (lambda (r) (length (car r))) func-rows))))
                      (func-name-width (max 10 (apply #'max (mapcar (lambda (r) (length (nth 1 r))) func-rows))))
                      (header (format (concat "%-" (number-to-string func-file-width) "s %-"
-                                             (number-to-string func-name-width) "s %10s")
-                                     "File" "Function" "Coverage")))
+                                             (number-to-string func-name-width) "s %10s %10s")
+                                     "File" "Function" "1value" "Coverage")))
                 (insert header "\n")
                 (insert (make-string (length header) ?-) "\n")
                 (dolist (row func-rows)
                   (insert (format (concat "%-" (number-to-string func-file-width) "s %-"
-                                          (number-to-string func-name-width) "s %10d%%")
-                                  (car row) (nth 1 row) (nth 2 row))
-                          "\n")))))
+                                          (number-to-string func-name-width) "s %10d ")
+                                  (car row) (nth 1 row) (nth 2 row)))
+                  (insert (propertize (format "%10d%%" (nth 3 row))
+                                      'face (testcover-audit-report--face-for-percent (nth 3 row))))
+                  (insert "\n")))))
           (goto-char (point-min))
           (display-buffer (current-buffer)))))))
 
