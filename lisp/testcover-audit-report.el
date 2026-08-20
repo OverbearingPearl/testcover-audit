@@ -157,14 +157,14 @@ Prefer the current buffer's coverage vector (found via
               (insert "\nFunction-level breakdown\n")
               (let* ((func-file-width (max 8 (apply #'max (mapcar (lambda (r) (length (car r))) func-rows))))
                      (func-name-width (max 10 (apply #'max (mapcar (lambda (r) (length (nth 1 r))) func-rows))))
-                     (header (format (concat "%-" (number-to-string func-file-width) "s %-"
-                                             (number-to-string func-name-width) "s %10s %10s")
+                     (header (format (format "%%-%ds %%-%ds %%10s %%10s"
+                                             func-file-width func-name-width)
                                      "File" "Function" "1value" "Coverage")))
                 (insert header "\n")
                 (insert (make-string (length header) ?-) "\n")
                 (dolist (row func-rows)
-                  (insert (format (concat "%-" (number-to-string func-file-width) "s %-"
-                                          (number-to-string func-name-width) "s %10d ")
+                  (insert (format (format "%%-%ds %%-%ds %%10d "
+                                          func-file-width func-name-width)
                                   (car row) (nth 1 row) (nth 2 row)))
                   (insert (propertize (format "%10d%%" (nth 3 row))
                                       'face (testcover-audit-report--face-for-percent (nth 3 row))))
