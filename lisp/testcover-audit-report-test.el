@@ -146,7 +146,10 @@
       (cl-remprop symbol 'edebug)
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
-      (when (buffer-live-p buf) (kill-buffer buf))
+      (when (buffer-live-p buf)
+        (with-current-buffer buf
+          (set-buffer-modified-p nil))
+        (kill-buffer buf))
       (delete-file file))))
 
 (ert-deftest testcover-audit-report-test--show-function-stats-mixed ()
@@ -311,7 +314,10 @@
       (cl-remprop symbol 'edebug)
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
-      (when (buffer-live-p buf) (kill-buffer buf))
+      (when (buffer-live-p buf)
+        (with-current-buffer buf
+          (set-buffer-modified-p nil))
+        (kill-buffer buf))
       (delete-file file))))
 
 (provide 'testcover-audit-report-test)

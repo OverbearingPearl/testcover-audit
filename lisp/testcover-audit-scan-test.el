@@ -106,7 +106,7 @@
             (put symbol 'edebug
                  (list (copy-marker (point-min))
                        nil
-                       (vector 0 20 40)))
+                       (vector 0 22 37)))
             (put symbol 'edebug-behavior 'testcover)
             (put symbol 'edebug-coverage
                  [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
