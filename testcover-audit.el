@@ -36,6 +36,8 @@
 ;;     RET on a file row opens its stats; RET on a function row opens
 ;;     that function's stats.
 ;;
+;; Report buffers support j/n (down) and k/p (up) for row navigation.
+;;
 ;;   testcover-audit-scan-directory
 ;;     Collect coverage from instrumented definitions in open source buffers.
 ;;

@@ -348,6 +348,45 @@
       (should-not (string-match-p "ok-fn" (buffer-string)))
       (should (string-match-p "Uncovered" (buffer-string))))))
 
+(ert-deftest testcover-audit-report-test--navigation-map ()
+  "Report buffers use the navigation keymap with j/k/n/p bindings."
+  (let ((testcover-audit--loaded-files
+         (list (cons (file-truename
+                      (expand-file-name "a.el" temporary-file-directory))
+                     (list (cons 'fn [edebug-unknown edebug-unknown])))))
+        (display-buffer-called nil))
+    (cl-letf (((symbol-function 'display-buffer)
+               (lambda (&rest _) (setq display-buffer-called t))))
+      (testcover-audit-report--batch-report))
+    (should display-buffer-called)
+    (with-current-buffer "*Testcover Batch Report*"
+      (should (eq (current-local-map)
+                  testcover-audit-report--navigation-map))
+      (should (eq (lookup-key (current-local-map) (kbd "j")) #'next-line))
+      (should (eq (lookup-key (current-local-map) (kbd "k")) #'previous-line))
+      (should (eq (lookup-key (current-local-map) (kbd "n")) #'next-line))
+      (should (eq (lookup-key (current-local-map) (kbd "p")) #'previous-line)))))
+
+(ert-deftest testcover-audit-report-test--function-report-navigation-map ()
+  "Function report buffer uses the navigation keymap."
+  (let* ((file (make-temp-file "tca-fn-nav-map" nil ".el"))
+         (buf (find-file-noselect file))
+         (display-buffer-called nil))
+    (unwind-protect
+        (with-current-buffer buf
+          (let ((testcover-audit--loaded-files
+                 (list (cons (file-truename file)
+                             (list (cons 'fn [edebug-unknown edebug-unknown]))))))
+            (cl-letf (((symbol-function 'display-buffer)
+                       (lambda (&rest _) (setq display-buffer-called t))))
+              (testcover-audit-report--show-function-stats)))
+          (should display-buffer-called)
+          (with-current-buffer "*Testcover Function Report*"
+            (should (eq (current-local-map)
+                        testcover-audit-report--navigation-map))))
+      (kill-buffer buf)
+      (delete-file file))))
+
 (ert-deftest testcover-audit-report-test--row-navigation-properties ()
   "Insert-table adds navigation properties when row-props-fn is provided."
   (with-temp-buffer

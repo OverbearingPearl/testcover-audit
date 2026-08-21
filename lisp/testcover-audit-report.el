@@ -15,12 +15,26 @@
 
 ;; Report buffers are read-only and navigable.  RET on a file row opens
 ;; that file's detailed report; RET on a function row opens that
-;; function's line-level report.  A header line shows the available keys.
+;; function's line-level report.  Use j/n to move down and k/p to move
+;; up between rows.  A header line shows the available keys.
 
 (require 'testcover-audit-options)
 (require 'testcover-audit-core)
 (require 'testcover-audit-scan)
 (require 'cl-lib)
+
+;;; Report buffer navigation
+
+(defvar testcover-audit-report--navigation-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "j") #'next-line)
+    (define-key map (kbd "k") #'previous-line)
+    (define-key map (kbd "n") #'next-line)
+    (define-key map (kbd "p") #'previous-line)
+    map)
+  "Keymap for moving between rows in report buffers.
+Provides j/n (down) and k/p (up) bindings in addition to the
+usual Emacs movement commands.")
 
 ;;; Rendering primitives
 
@@ -209,8 +223,9 @@ When FILES-COUNT is non-nil, include a files count line."
 
 (defmacro testcover-audit-report--in-report-buffer (buffer-name header &rest body)
   "Run BODY in BUFFER-NAME after erasing it, then display the buffer.
-The resulting buffer is made read-only, and HEADER is shown as its
-header line when non-nil."
+The resulting buffer is made read-only, uses
+`testcover-audit-report--navigation-map' as its local keymap, and
+HEADER is shown as its header line when non-nil."
   (declare (indent 2))
   `(with-current-buffer (get-buffer-create ,buffer-name)
      (let ((inhibit-read-only t))
@@ -218,6 +233,7 @@ header line when non-nil."
        ,@body)
      (setq buffer-read-only t)
      (setq header-line-format ,header)
+     (use-local-map testcover-audit-report--navigation-map)
      (goto-char (point-min))
      (display-buffer (current-buffer))))
 
@@ -394,7 +410,7 @@ When FILE is nil, use the current buffer."
         (testcover-audit-report--message-no-data file)
       (testcover-audit-report--in-report-buffer
           "*Testcover Audit Report*"
-          "RET on a function row: show that function's stats"
+          "j/n down, k/p up | RET on a function row: show that function's stats"
         (insert "Testcover Audit Report\n\n")
         (insert (format "File: %s\n\n" (or file "(none)")))
         (testcover-audit-report--insert-overall stats)
@@ -420,7 +436,8 @@ summary table per function."
     (cond
      ((or line-entries rows)
       (testcover-audit-report--in-report-buffer
-          "*Testcover Function Report*" nil
+          "*Testcover Function Report*"
+          "j/n down, k/p up"
         (insert (propertize "Testcover Function Report\n" 'face 'bold))
         (insert (format "File: %s\n\n" (or file "(none)")))
         (if line-entries
@@ -449,7 +466,7 @@ summary table per function."
         (message "No coverage data collected.\nRun `testcover-start', run your tests, then `testcover-audit-scan-directory'.")
       (testcover-audit-report--in-report-buffer
           "*Testcover Batch Report*"
-          "RET on a file row: show file stats; RET on a function row: show function stats"
+          "j/n down, k/p up | RET on file row: file stats; on function row: function stats"
         (insert "Testcover Audit Batch Report\n\n")
         (insert "Hint: RET on a file row shows file stats; RET on a function row shows that function's stats.\n\n")
         (testcover-audit-report--insert-overall stats (length entries))

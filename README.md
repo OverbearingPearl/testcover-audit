@@ -83,7 +83,9 @@ jump to more detail:
   line-level report.
 - In the file report, `RET` on a function row opens that function's
   line-level report.
-
+ 
+Use `j`/`n` to move down and `k`/`p` to move up between rows.
+ 
 A header line at the top of each report buffer reminds you of the
 available keys.
 
