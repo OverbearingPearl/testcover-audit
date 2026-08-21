@@ -104,7 +104,8 @@
               (testcover-audit-report--show-all-stats))
             (should display-buffer-called)
             (with-current-buffer "*Testcover Audit Report*"
-              (should (string-match-p "Coverage %" (buffer-string)))
+              (should (string-match-p "Testcover Audit Report" (buffer-string)))
+              (should (string-match-p "Function-level breakdown" (buffer-string)))
               (should (string-match-p "75" (buffer-string))))))
       (kill-buffer buf)
       (delete-file file))))
@@ -241,6 +242,7 @@
               (testcover-audit-report--show-all-stats)))
           (should display-buffer-called)
           (with-current-buffer "*Testcover Audit Report*"
+            (should (string-match-p "Function-level breakdown" (buffer-string)))
             (should (string-match-p "75" (buffer-string)))))
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
@@ -271,6 +273,41 @@
           (with-current-buffer "*Testcover Function Report*"
             (should (string-match-p "tca-live-fn" (buffer-string)))
             (should (string-match-p "0%" (buffer-string)))))
+      (cl-remprop symbol 'edebug-behavior)
+      (cl-remprop symbol 'edebug-coverage)
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file file))))
+
+(ert-deftest testcover-audit-report-test--show-all-stats-no-line-level ()
+  "Show-all-stats skips line-level breakdown even with position data."
+  (let* ((file (make-temp-file "tca-all-no-line" nil ".el"))
+         (symbol (make-symbol "tca-all-no-line-fn"))
+         (buf (find-file-noselect file))
+         (display-buffer-called nil))
+    (unwind-protect
+        (with-current-buffer buf
+          (insert "(defun tca-all-no-line-fn ()\n"
+                  "  (message \"hi\")\n"
+                  "  nil)\n")
+          (setq-local edebug-form-data
+                      (list (edebug--make-form-data-entry
+                             symbol
+                             (copy-marker (point-min))
+                             (copy-marker (point-max)))))
+          (put symbol 'edebug
+               (list (copy-marker (point-min)) nil (vector 0 20 40)))
+          (put symbol 'edebug-behavior 'testcover)
+          (put symbol 'edebug-coverage
+               [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
+          (let ((testcover-audit--loaded-files nil))
+            (cl-letf (((symbol-function 'display-buffer)
+                       (lambda (&rest _) (setq display-buffer-called t))))
+              (testcover-audit-report--show-all-stats)))
+          (should display-buffer-called)
+          (with-current-buffer "*Testcover Audit Report*"
+            (should (string-match-p "Function-level breakdown" (buffer-string)))
+            (should-not (string-match-p "Line-level breakdown" (buffer-string)))))
+      (cl-remprop symbol 'edebug)
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
       (when (buffer-live-p buf) (kill-buffer buf))
