@@ -24,6 +24,7 @@
 ;;   testcover-audit-show-all-stats
 ;;     Open a detailed report buffer with color-coded overall and
 ;;     function-level statistics for the current file.
+;;     In the report, RET on a function row opens that function's stats.
 ;;
 ;;   testcover-audit-show-function-stats
 ;;     Show per-function coverage, including line-level breakdown when
@@ -32,6 +33,8 @@
 ;;   testcover-audit-batch-report
 ;;     Show an aggregate table for all instrumented files, with
 ;;     per-file and low-coverage function breakdown.
+;;     RET on a file row opens its stats; RET on a function row opens
+;;     that function's stats.
 ;;
 ;;   testcover-audit-scan-directory
 ;;     Collect coverage from instrumented definitions in open source buffers.

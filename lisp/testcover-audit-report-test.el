@@ -348,5 +348,106 @@
       (should-not (string-match-p "ok-fn" (buffer-string)))
       (should (string-match-p "Uncovered" (buffer-string))))))
 
+(ert-deftest testcover-audit-report-test--row-navigation-properties ()
+  "Insert-table adds navigation properties when row-props-fn is provided."
+  (with-temp-buffer
+    (testcover-audit-report--insert-table
+     '(("File" text) ("Total" number))
+     '(("a.el" 1))
+     (lambda (_row _idx)
+       (list :keymap testcover-audit-report--file-stats-keymap
+             :file "/tmp/a.el")))
+    (goto-char (point-min))
+    (forward-line 2)                  ; skip header and separator
+    (should (eq (get-text-property (point) 'keymap)
+                testcover-audit-report--file-stats-keymap))
+    (should (string= (get-text-property (point) 'testcover-audit-report-file)
+                     "/tmp/a.el"))))
+
+(ert-deftest testcover-audit-report-test--batch-report-row-navigation ()
+  "Batch report binds file rows and function rows for navigation."
+  (let ((testcover-audit--loaded-files
+         (list (cons (file-truename (expand-file-name "a.el" temporary-file-directory))
+                     (list (cons 'high-fn [edebug-ok-coverage edebug-ok-coverage])
+                           (cons 'low-fn [edebug-unknown edebug-unknown]))))))
+    (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
+      (testcover-audit-report--batch-report))
+    (with-current-buffer "*Testcover Batch Report*"
+      ;; File row: locate the first row carrying the file navigation property.
+      (goto-char (point-min))
+      (let ((match (text-property-search-forward 'testcover-audit-report-file)))
+        (should match)
+        (goto-char (prop-match-beginning match))
+        (should (eq (get-text-property (point) 'keymap)
+                    testcover-audit-report--file-stats-keymap))
+        (should (string= (get-text-property (point) 'testcover-audit-report-file)
+                         (file-truename
+                          (expand-file-name "a.el" temporary-file-directory)))))
+      ;; Function row: locate the first low-function row carrying the
+      ;; function navigation property.
+      (goto-char (point-min))
+      (let ((match (text-property-search-forward 'testcover-audit-report-function)))
+        (should match)
+        (goto-char (prop-match-beginning match))
+        (should (eq (get-text-property (point) 'keymap)
+                    testcover-audit-report--function-stats-keymap))
+        (should (string= (get-text-property (point) 'testcover-audit-report-function)
+                         "low-fn"))))))
+
+(ert-deftest testcover-audit-report-test--goto-file-stats ()
+  "Goto-file-stats calls show-all-stats with the associated file."
+  (let (called)
+    (cl-letf (((symbol-function 'testcover-audit-report--show-all-stats)
+               (lambda (file) (setq called file))))
+      (with-temp-buffer
+        (insert "x")
+        (put-text-property (point-min) (point-max)
+                           'testcover-audit-report-file "/tmp/a.el")
+        (goto-char (point-min))
+        (testcover-audit-report--goto-file-stats)
+        (should (string= called "/tmp/a.el"))))))
+
+(ert-deftest testcover-audit-report-test--goto-function-stats ()
+  "Goto-function-stats calls show-function-stats with file and function."
+  (let (called-file called-function)
+    (cl-letf (((symbol-function 'testcover-audit-report--show-function-stats)
+               (lambda (file function)
+                 (setq called-file file)
+                 (setq called-function function))))
+      (with-temp-buffer
+        (insert "x")
+        (put-text-property (point-min) (point-max)
+                           'testcover-audit-report-file "/tmp/a.el")
+        (put-text-property (point-min) (point-max)
+                           'testcover-audit-report-function "low-fn")
+        (goto-char (point-min))
+        (testcover-audit-report--goto-function-stats)
+        (should (string= called-file "/tmp/a.el"))
+        (should (string= called-function "low-fn"))))))
+
+(ert-deftest testcover-audit-report-test--show-function-stats-with-function ()
+  "Show-function-stats moves point to the requested function."
+  (let* ((file (make-temp-file "tca-nav-fn" nil ".el"))
+         (symbol (make-symbol "tca-nav-target"))
+         (buf (find-file-noselect file)))
+    (unwind-protect
+        (with-current-buffer buf
+          (setq-local edebug-form-data
+                      (list (edebug--make-form-data-entry
+                             symbol
+                             (copy-marker (point-min))
+                             (copy-marker (point-max)))))
+          (put symbol 'edebug-behavior 'testcover)
+          (put symbol 'edebug-coverage
+               [edebug-unknown edebug-unknown edebug-unknown])
+          (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
+            (testcover-audit-report--show-function-stats file "tca-nav-target"))
+          (with-current-buffer "*Testcover Function Report*"
+            (should (looking-at "tca-nav-target"))))
+      (cl-remprop symbol 'edebug-behavior)
+      (cl-remprop symbol 'edebug-coverage)
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-file file))))
+
 (provide 'testcover-audit-report-test)
 ;;; testcover-audit-report-test.el ends here

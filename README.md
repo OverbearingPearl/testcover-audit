@@ -73,6 +73,20 @@ M-x testcover-audit-project-report
 
 `testcover-audit-project-report` scans the current project root and then displays a batch report. If you only need data collection, use `testcover-audit-scan-directory` directly.
 
+### Navigating reports
+
+Report buffers are read-only.  Move point onto a row and press `RET` to
+jump to more detail:
+
+- In the batch report, `RET` on a file row opens that file's detailed
+  report; `RET` on a low-coverage function row opens that function's
+  line-level report.
+- In the file report, `RET` on a function row opens that function's
+  line-level report.
+
+A header line at the top of each report buffer reminds you of the
+available keys.
+
 ### Command summary
 
 | Command | Purpose |

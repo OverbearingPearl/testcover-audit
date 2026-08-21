@@ -13,6 +13,10 @@
 
 ;;; Code:
 
+;; Report buffers are read-only and navigable.  RET on a file row opens
+;; that file's detailed report; RET on a function row opens that
+;; function's line-level report.  A header line shows the available keys.
+
 (require 'testcover-audit-options)
 (require 'testcover-audit-core)
 (require 'testcover-audit-scan)
@@ -95,7 +99,7 @@ computed column widths; ROW holds the raw values for percent faces."
    (number-sequence 0 (1- (length specs)))
    "  "))
 
-(defun testcover-audit-report--insert-table (headers rows)
+(defun testcover-audit-report--insert-table (headers rows &optional row-props-fn)
   "Insert a formatted table with HEADERS specs and ROWS data.
 
 Each HEADERS element is (LABEL TYPE &optional FACE) where TYPE is
@@ -105,9 +109,13 @@ the header count.  `number' and `percent' cells are right-aligned;
 given.  `percent' cells are colored by threshold.
 
 When `testcover-audit-report-format' is `list', each row is rendered
-as a single \"Label: value\" line instead of an aligned table."
+as a single \"Label: value\" line instead of an aligned table.
+
+ROW-PROPS-FN, when non-nil, is called with (ROW INDEX) and returns a
+plist of navigation properties for that row (see
+`testcover-audit-report--add-row-properties')."
   (if (eq testcover-audit-report-format 'list)
-      (testcover-audit-report--insert-list-table headers rows)
+      (testcover-audit-report--insert-list-table headers rows row-props-fn)
     (let* ((num-cols (length headers))
            (widths (mapcar (lambda (spec) (length (car spec))) headers))
            (string-rows
@@ -131,19 +139,35 @@ as a single \"Label: value\" line instead of an aligned table."
         (insert (make-string (length header-line) ?-) "\n"))
       (cl-loop for row in rows
                for srow in string-rows
-               do (insert (testcover-audit-report--format-table-row
-                           srow row headers widths))
-               do (insert "\n")))))
+               for idx from 0
+               do (let ((start (point)))
+                    (insert (testcover-audit-report--format-table-row
+                             srow row headers widths))
+                    (let ((end (point)))
+                      (insert "\n")
+                      (when row-props-fn
+                        (let ((props (funcall row-props-fn row idx)))
+                          (when props
+                            (testcover-audit-report--add-row-properties
+                             start end props))))))))))
 
-(defun testcover-audit-report--insert-list-table (headers rows)
+(defun testcover-audit-report--insert-list-table (headers rows &optional row-props-fn)
   "Insert ROWS in list format using HEADERS specs.
 
 Each row is inserted as one line with comma-separated
-\"Label: value\" pairs.  Percent cells keep their threshold face."
+\"Label: value\" pairs.  Percent cells keep their threshold face.
+ROW-PROPS-FN, when non-nil, is called with (ROW INDEX) and returns a
+plist of navigation properties for that row."
   (when rows
     (cl-loop for row in rows
+             for idx from 0
              do (insert (testcover-audit-report--format-list-row headers row))
-             do (insert "\n"))))
+             do (insert "\n")
+             do (when row-props-fn
+                  (let ((props (funcall row-props-fn row idx)))
+                    (when props
+                      (testcover-audit-report--add-row-properties
+                       (line-beginning-position) (1- (point)) props)))))))
 
 (defun testcover-audit-report--format-list-row (headers row)
   "Return a list-style line for ROW using HEADERS specs.
@@ -183,12 +207,17 @@ When FILES-COUNT is non-nil, include a files count line."
                              (plist-get stats :percent))))
   (insert "\n"))
 
-(defmacro testcover-audit-report--in-report-buffer (buffer-name &rest body)
-  "Run BODY in BUFFER-NAME after erasing it, then display the buffer."
-  (declare (indent 1))
+(defmacro testcover-audit-report--in-report-buffer (buffer-name header &rest body)
+  "Run BODY in BUFFER-NAME after erasing it, then display the buffer.
+The resulting buffer is made read-only, and HEADER is shown as its
+header line when non-nil."
+  (declare (indent 2))
   `(with-current-buffer (get-buffer-create ,buffer-name)
-     (erase-buffer)
-     ,@body
+     (let ((inhibit-read-only t))
+       (erase-buffer)
+       ,@body)
+     (setq buffer-read-only t)
+     (setq header-line-format ,header)
      (goto-char (point-min))
      (display-buffer (current-buffer))))
 
@@ -235,23 +264,34 @@ available."
 
 ;;; Table variants
 
-(defun testcover-audit-report--insert-function-table (fn-stats)
+(defun testcover-audit-report--insert-function-table (fn-stats &optional file)
   "Insert a function coverage table for FN-STATS.
+
+When FILE is non-nil, bind each function row to jump to that function's
+details in the function report buffer.
 
 FN-STATS is a list of plists with at least :name, :total, :covered,
 :onevalue, :uncovered and :percent keys."
   (when fn-stats
-    (testcover-audit-report--insert-table
-     '(("Function" text) ("Total" number) ("Covered" number)
-       ("1value" number) ("Uncovered" number) ("Coverage" percent))
-     (mapcar (lambda (s)
-               (list (or (plist-get s :name) "<anonymous>")
-                     (or (plist-get s :total) 0)
-                     (or (plist-get s :covered) 0)
-                     (or (plist-get s :onevalue) 0)
-                     (or (plist-get s :uncovered) 0)
-                     (or (plist-get s :percent) 0)))
-             fn-stats))))
+    (let ((row-props-fn
+           (and file
+                (lambda (row _idx)
+                  (list :keymap testcover-audit-report--function-stats-keymap
+                        :file file
+                        :function (car row)
+                        :help-echo "RET: show function stats")))))
+      (testcover-audit-report--insert-table
+       '(("Function" text) ("Total" number) ("Covered" number)
+         ("1value" number) ("Uncovered" number) ("Coverage" percent))
+       (mapcar (lambda (s)
+                 (list (or (plist-get s :name) "<anonymous>")
+                       (or (plist-get s :total) 0)
+                       (or (plist-get s :covered) 0)
+                       (or (plist-get s :onevalue) 0)
+                       (or (plist-get s :uncovered) 0)
+                       (or (plist-get s :percent) 0)))
+               fn-stats)
+       row-props-fn))))
 
 (defun testcover-audit-report--insert-line-table (entry)
   "Insert a line coverage table for ENTRY.
@@ -282,6 +322,56 @@ ENTRY is (SYMBOL . ((LINE . STATS-PLIST) ...))."
              line-stats))
     (insert "\n")))
 
+;;; Report navigation
+
+(defvar testcover-audit-report--file-stats-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'testcover-audit-report--goto-file-stats)
+    map)
+  "Keymap for rows that jump to a file's detailed report.")
+
+(defvar testcover-audit-report--function-stats-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'testcover-audit-report--goto-function-stats)
+    map)
+  "Keymap for rows that jump to a function's detailed report.")
+
+(defun testcover-audit-report--add-row-properties (start end props)
+  "Add navigation PROPS to report row region START..END.
+PROPS is a plist with optional keys `:keymap', `:file', `:function'
+and `:help-echo'."
+  (let ((keymap (plist-get props :keymap))
+        (file (plist-get props :file))
+        (function (plist-get props :function))
+        (help-echo (plist-get props :help-echo)))
+    (when keymap
+      (put-text-property start end 'keymap keymap))
+    (when file
+      (put-text-property start end 'testcover-audit-report-file file))
+    (when function
+      (put-text-property start end 'testcover-audit-report-function function))
+    (put-text-property start end 'mouse-face 'highlight)
+    (put-text-property start end 'follow-link t)
+    (when help-echo
+      (put-text-property start end 'help-echo help-echo))))
+
+(defun testcover-audit-report--goto-file-stats ()
+  "Show the detailed report for the file on the current line."
+  (interactive)
+  (let ((file (get-text-property (point) 'testcover-audit-report-file)))
+    (if file
+        (testcover-audit-report--show-all-stats file)
+      (message "No file association on this line"))))
+
+(defun testcover-audit-report--goto-function-stats ()
+  "Show the detailed report for the function on the current line."
+  (interactive)
+  (let* ((file (get-text-property (point) 'testcover-audit-report-file))
+         (function (get-text-property (point) 'testcover-audit-report-function)))
+    (if file
+        (testcover-audit-report--show-function-stats file function)
+      (message "No file association on this line"))))
+
 ;;; Commands
 
 (defun testcover-audit-report--show-stats ()
@@ -295,29 +385,33 @@ ENTRY is (SYMBOL . ((LINE . STATS-PLIST) ...))."
                  (plist-get stats :total))
       (testcover-audit-report--message-no-data file))))
 
-(defun testcover-audit-report--show-all-stats ()
-  "Show detailed coverage report in a dedicated buffer."
-  (let* ((file (buffer-file-name))
+(defun testcover-audit-report--show-all-stats (&optional file)
+  "Show detailed coverage report in a dedicated buffer for FILE.
+When FILE is nil, use the current buffer."
+  (let* ((file (or file (buffer-file-name)))
          (stats (testcover-audit-report--stats-for-file file)))
     (if (null stats)
         (testcover-audit-report--message-no-data file)
       (testcover-audit-report--in-report-buffer
           "*Testcover Audit Report*"
+          "RET on a function row: show that function's stats"
         (insert "Testcover Audit Report\n\n")
         (insert (format "File: %s\n\n" (or file "(none)")))
         (testcover-audit-report--insert-overall stats)
         (let ((fn-stats (testcover-audit-report--function-stats-for-file file)))
           (when fn-stats
             (insert "\nFunction-level breakdown\n")
-            (testcover-audit-report--insert-function-table fn-stats)))))))
+            (testcover-audit-report--insert-function-table fn-stats file)))))))
 
-(defun testcover-audit-report--show-function-stats ()
-  "Show per-function coverage report.
+(defun testcover-audit-report--show-function-stats (&optional file function)
+  "Show per-function coverage report for FILE.
+When FILE is nil, use the current buffer.  When FUNCTION is non-nil,
+move point to that function's section after rendering.
 
 When the current buffer has live testcover position data, show a
 line-by-line breakdown for each function.  Otherwise fall back to a
 summary table per function."
-  (let* ((file (buffer-file-name))
+  (let* ((file (or file (buffer-file-name)))
          (line-entries (and file
                             (testcover-audit-scan--buffer-function-line-stats
                              file)))
@@ -326,13 +420,23 @@ summary table per function."
     (cond
      ((or line-entries rows)
       (testcover-audit-report--in-report-buffer
-          "*Testcover Function Report*"
+          "*Testcover Function Report*" nil
         (insert (propertize "Testcover Function Report\n" 'face 'bold))
         (insert (format "File: %s\n\n" (or file "(none)")))
         (if line-entries
             (dolist (entry line-entries)
               (testcover-audit-report--insert-line-table entry))
-          (testcover-audit-report--insert-function-table rows))))
+          (testcover-audit-report--insert-function-table rows)))
+      (when function
+        (with-current-buffer "*Testcover Function Report*"
+          (let ((name (if (symbolp function)
+                          (symbol-name function)
+                        function)))
+            (goto-char (point-min))
+            (when (re-search-forward
+                   (concat "^" (regexp-quote name) "\\(?:[ \t]\\|$\\)")
+                   nil t)
+              (beginning-of-line))))))
      (t
       (testcover-audit-report--message-no-data file)))))
 
@@ -345,7 +449,9 @@ summary table per function."
         (message "No coverage data collected.\nRun `testcover-start', run your tests, then `testcover-audit-scan-directory'.")
       (testcover-audit-report--in-report-buffer
           "*Testcover Batch Report*"
+          "RET on a file row: show file stats; RET on a function row: show function stats"
         (insert "Testcover Audit Batch Report\n\n")
+        (insert "Hint: RET on a file row shows file stats; RET on a function row shows that function's stats.\n\n")
         (testcover-audit-report--insert-overall stats (length entries))
         (insert "\nPer-file breakdown\n")
         (testcover-audit-report--insert-table
@@ -359,7 +465,13 @@ summary table per function."
                            (plist-get fstats :onevalue)
                            (plist-get fstats :uncovered)
                            (plist-get fstats :percent))))
-                 collected))
+                 collected)
+         (lambda (_row idx)
+           (let* ((item (nth idx collected))
+                  (fpath (nth 1 item)))
+             (list :keymap testcover-audit-report--file-stats-keymap
+                   :file fpath
+                   :help-echo "RET: show file stats"))))
         (let* ((threshold testcover-audit-low-coverage-threshold)
                (func-rows
                (cl-loop for item in collected
@@ -382,12 +494,23 @@ summary table per function."
                                  (string< (car a) (car b)))))))
           (when func-rows
             (insert "\nFunction-level breakdown\n")
-            (testcover-audit-report--insert-table
-             '(("File" text) ("Function" text)
-               ("Total" number) ("Covered" number)
-               ("1value" number) ("Uncovered" number)
-               ("Coverage" percent))
-             func-rows)))))))
+            (let ((rel-to-fpath
+                   (mapcar (lambda (item)
+                             (cons (nth 0 item) (nth 1 item)))
+                           collected)))
+              (testcover-audit-report--insert-table
+               '(("File" text) ("Function" text)
+                 ("Total" number) ("Covered" number)
+                 ("1value" number) ("Uncovered" number)
+                 ("Coverage" percent))
+               func-rows
+               (lambda (row _idx)
+                 (let ((fpath (cdr (assoc (car row) rel-to-fpath))))
+                   (when fpath
+                     (list :keymap testcover-audit-report--function-stats-keymap
+                           :file fpath
+                           :function (nth 1 row)
+                           :help-echo "RET: show function stats"))))))))))))
 
 (provide 'testcover-audit-report)
 ;;; testcover-audit-report.el ends here
