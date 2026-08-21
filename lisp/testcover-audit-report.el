@@ -343,12 +343,14 @@ ENTRY is (SYMBOL . ((LINE . STATS-PLIST) ...))."
 (defvar testcover-audit-report--file-stats-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "RET") #'testcover-audit-report--goto-file-stats)
+    (define-key map [mouse-2] #'testcover-audit-report--goto-file-stats)
     map)
   "Keymap for rows that jump to a file's detailed report.")
 
 (defvar testcover-audit-report--function-stats-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "RET") #'testcover-audit-report--goto-function-stats)
+    (define-key map [mouse-2] #'testcover-audit-report--goto-function-stats)
     map)
   "Keymap for rows that jump to a function's detailed report.")
 
@@ -468,7 +470,6 @@ summary table per function."
           "*Testcover Batch Report*"
           "j/n down, k/p up | RET on file row: file stats; on function row: function stats"
         (insert "Testcover Audit Batch Report\n\n")
-        (insert "Hint: RET on a file row shows file stats; RET on a function row shows that function's stats.\n\n")
         (testcover-audit-report--insert-overall stats (length entries))
         (insert "\nPer-file breakdown\n")
         (testcover-audit-report--insert-table

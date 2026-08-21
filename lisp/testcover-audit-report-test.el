@@ -403,6 +403,15 @@
     (should (string= (get-text-property (point) 'testcover-audit-report-file)
                      "/tmp/a.el"))))
 
+(ert-deftest testcover-audit-report-test--row-navigation-mouse-bindings ()
+  "Report row keymaps activate their targets with the mouse."
+  (should (eq (lookup-key testcover-audit-report--file-stats-keymap
+                          [mouse-2])
+              #'testcover-audit-report--goto-file-stats))
+  (should (eq (lookup-key testcover-audit-report--function-stats-keymap
+                          [mouse-2])
+              #'testcover-audit-report--goto-function-stats)))
+
 (ert-deftest testcover-audit-report-test--batch-report-row-navigation ()
   "Batch report binds file rows and function rows for navigation."
   (let ((testcover-audit--loaded-files
