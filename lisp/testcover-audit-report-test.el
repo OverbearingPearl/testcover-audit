@@ -138,9 +138,10 @@
               (testcover-audit-report--show-function-stats)))
           (should display-buffer-called)
           (with-current-buffer "*Testcover Function Report*"
+            (should (string-match-p "Testcover Function Report" (buffer-string)))
             (should (string-match-p "tca-line-report-fn" (buffer-string)))
             (should (string-match-p "Line" (buffer-string)))
-            (should (string-match-p "Total" (buffer-string)))
+            (should (string-match-p "Coverage" (buffer-string)))
             (should (string-match-p "Uncovered" (buffer-string)))))
       (cl-remprop symbol 'edebug)
       (cl-remprop symbol 'edebug-behavior)

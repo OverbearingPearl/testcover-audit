@@ -93,7 +93,7 @@ FN-STATS is a list of plists with at least :name, :total, :covered,
            (header (format (format "%%-%ds %%10s %%10s %%10s %%10s %%10s"
                                    name-width)
                            "Function" "Total" "Covered" "1value" "Uncovered" "Coverage")))
-      (insert header "\n")
+      (insert (propertize header 'face 'bold) "\n")
       (insert (make-string (+ name-width (* 5 11)) ?-)
               "\n")
       (dolist (s fn-stats)
@@ -114,17 +114,29 @@ FN-STATS is a list of plists with at least :name, :total, :covered,
   "Insert a line-level coverage table for ENTRY.
 
 ENTRY is (SYMBOL . ((LINE . STATS-PLIST) ...))."
-  (let ((line-stats (cdr entry)))
-    (insert (format "%s\n" (symbol-name (car entry))))
-    (insert (testcover-audit-report--format-table
-             (cons (list "Line" "Total" "Covered" "1value" "Uncovered")
-                   (mapcar (lambda (ls)
-                             (list (number-to-string (car ls))
-                                   (plist-get (cdr ls) :total)
-                                   (plist-get (cdr ls) :covered)
-                                   (plist-get (cdr ls) :onevalue)
-                                   (plist-get (cdr ls) :uncovered)))
-                           line-stats))))
+  (let* ((line-stats (cdr entry))
+         (lines (mapcar #'car line-stats))
+         (line-width (length (number-to-string (apply #'max lines))))
+         (header (format (format "%%-%ds %%10s %%10s %%10s %%10s %%10s" line-width)
+                         "Line" "Total" "Covered" "1value" "Uncovered" "Coverage")))
+    (insert (propertize (symbol-name (car entry))
+                        'face 'font-lock-function-name-face)
+            "\n")
+    (insert (propertize header 'face 'bold) "\n")
+    (insert (make-string (length header) ?-) "\n")
+    (dolist (ls line-stats)
+      (let* ((stats (cdr ls))
+             (total (or (plist-get stats :total) 0))
+             (covered (or (plist-get stats :covered) 0))
+             (onevalue (or (plist-get stats :onevalue) 0))
+             (uncovered (or (plist-get stats :uncovered) 0))
+             (percent (testcover-audit-core--percent (+ covered onevalue) total)))
+        (insert (propertize (format (format "%%-%ds" line-width) (car ls))
+                            'face 'font-lock-constant-face))
+        (insert (format " %10d %10d %10d %10d" total covered onevalue uncovered))
+        (insert (propertize (format "%11s" (format "%d%%" percent))
+                            'face (testcover-audit-report--face-for-percent percent)))
+        (insert "\n")))
     (insert "\n")))
 
 (defun testcover-audit-report--show-function-stats ()
@@ -136,21 +148,24 @@ summary table per function."
   (let* ((file (buffer-file-name))
          (line-entries (and file
                             (testcover-audit-scan--buffer-function-line-stats
-                             file))))
-    (if line-entries
-        (with-current-buffer (get-buffer-create "*Testcover Function Report*")
-          (erase-buffer)
-          (dolist (entry line-entries)
-            (testcover-audit-report--insert-line-table entry))
-          (display-buffer (current-buffer)))
-      (let ((rows (testcover-audit-report--function-stats-for-file file)))
-        (if (null rows)
-            (message "No coverage data for %s.\nRun `testcover-start', run your tests, and keep the buffer open."
-                     (or file "(buffer)"))
-          (with-current-buffer (get-buffer-create "*Testcover Function Report*")
-            (erase-buffer)
-            (testcover-audit-report--insert-function-table rows)
-            (display-buffer (current-buffer))))))))
+                             file)))
+         (rows (unless line-entries
+                 (testcover-audit-report--function-stats-for-file file))))
+    (cond
+     ((or line-entries rows)
+      (with-current-buffer (get-buffer-create "*Testcover Function Report*")
+        (erase-buffer)
+        (insert (propertize "Testcover Function Report\n" 'face 'bold))
+        (insert (format "File: %s\n\n" (or file "(none)")))
+        (if line-entries
+            (dolist (entry line-entries)
+              (testcover-audit-report--insert-line-table entry))
+          (testcover-audit-report--insert-function-table rows))
+        (goto-char (point-min))
+        (display-buffer (current-buffer))))
+     (t
+      (message "No coverage data for %s.\nRun `testcover-start', run your tests, and keep the buffer open."
+               (or file "(buffer)"))))))
 
 (defun testcover-audit-report--batch-report ()
   "Show a detailed coverage report for all instrumented files."
