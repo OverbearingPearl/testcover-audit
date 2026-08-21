@@ -530,5 +530,15 @@ summary table per function."
                            :function (nth 1 row)
                            :help-echo "RET: show function stats"))))))))))))
 
+(defun testcover-audit-report--project-report ()
+  "Collect and display existing testcover data for the current project root.
+
+Source files must already have been instrumented and tests must already
+have run.  Use `testcover-audit-instrument-directory' before running tests."
+  (let ((root (or (locate-dominating-file default-directory ".git")
+                  default-directory)))
+    (testcover-audit-scan--scan-directory root)
+    (testcover-audit-report--batch-report)))
+
 (provide 'testcover-audit-report)
 ;;; testcover-audit-report.el ends here

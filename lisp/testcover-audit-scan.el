@@ -158,7 +158,16 @@ Test files matching `testcover-audit-test-file-regexp' and files matching
 `testcover-audit-exclude-files' are skipped.  This command intentionally
 does not load or run tests."
   (require 'testcover)
-  (let ((files (testcover-audit-scan--source-files directory)))
+  (let* ((files (testcover-audit-scan--source-files directory))
+         (source-dirs
+          (delete-dups
+           (mapcar (lambda (file)
+                     (directory-file-name (file-name-directory file)))
+                   files)))
+         ;; `testcover-start' evaluates the file with `eval-buffer'.
+         ;; Add the files' directories to `load-path' so that `require'
+         ;; forms inside them can be resolved during that evaluation.
+         (load-path (append source-dirs load-path)))
     (dolist (file files)
       (testcover-start file))
     (message "Instrumented %d source files under %s."
@@ -198,16 +207,6 @@ are skipped; use `testcover-audit--loaded-files' to see what was found."
        "Skipped %d files: %d not open, %d with dead buffers, %d without testcover-instrumented definitions."
        (- (length files) (length testcover-audit--loaded-files))
        not-open dead-buffer no-instrumented))))
-
-(defun testcover-audit-scan--project-report ()
-  "Collect and display existing testcover data for the current project root.
-
-Source files must already have been instrumented and tests must already
-have run.  Use `testcover-audit-instrument-directory' before running tests."
-  (let ((root (or (locate-dominating-file default-directory ".git")
-                  default-directory)))
-    (testcover-audit-scan--scan-directory root)
-    (testcover-audit-report--batch-report)))
 
 (defun testcover-audit-scan--dependency-order (files)
   "Order FILES by dependency (require) relationships.

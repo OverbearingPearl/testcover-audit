@@ -248,7 +248,7 @@ Intended for use in CI pipelines."
 (defun testcover-audit-project-report ()
   "Collect and display existing testcover data for the current project root."
   (interactive)
-  (testcover-audit-scan--project-report))
+  (testcover-audit-report--project-report))
 
 (provide 'testcover-audit)
 ;;; testcover-audit.el ends here

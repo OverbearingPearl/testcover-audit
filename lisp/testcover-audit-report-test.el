@@ -497,5 +497,24 @@
       (when (buffer-live-p buf) (kill-buffer buf))
       (delete-file file))))
 
+(ert-deftest testcover-audit-report-test--project-report ()
+  "Project-report scans root and generates batch report."
+  (let* ((dir (make-temp-file "tca-proj" t))
+         (git-dir (expand-file-name ".git" dir)))
+    (unwind-protect
+        (progn
+          (make-directory git-dir)
+          (let ((default-directory dir)
+                (scan-called nil)
+                (report-called nil))
+            (cl-letf (((symbol-function 'testcover-audit-scan--scan-directory)
+                       (lambda (_) (setq scan-called t)))
+                      ((symbol-function 'testcover-audit-report--batch-report)
+                       (lambda () (setq report-called t))))
+              (testcover-audit-report--project-report))
+            (should scan-called)
+            (should report-called)))
+      (delete-directory dir t))))
+
 (provide 'testcover-audit-report-test)
 ;;; testcover-audit-report-test.el ends here

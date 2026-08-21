@@ -114,7 +114,7 @@
 (ert-deftest testcover-audit-main-test--project-report-wrapper ()
   "Test project-report wrapper calls underlying function."
   (let (called)
-    (cl-letf (((symbol-function 'testcover-audit-scan--project-report)
+    (cl-letf (((symbol-function 'testcover-audit-report--project-report)
                (lambda () (setq called t))))
       (testcover-audit-project-report)
       (should called))))
