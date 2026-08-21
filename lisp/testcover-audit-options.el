@@ -28,8 +28,21 @@
   :group 'testcover-audit)
 
 (defcustom testcover-audit-report-format 'table
-  "Default report format.  Either `table' or `list'."
+  "Default report format.
+
+When `table', reports use aligned tables.  When `list', each record is
+rendered on one line with \"Label: value\" pairs, which is more
+compact in narrow windows."
   :type '(choice (const table) (const list))
+  :group 'testcover-audit)
+
+(defcustom testcover-audit-low-coverage-threshold 100
+  "Minimum coverage percentage for a function to appear in batch reports.
+
+Functions with coverage below this value are listed in the
+function-level breakdown.  The default 100 lists every function that
+is not fully covered."
+  :type 'number
   :group 'testcover-audit)
 
 (defcustom testcover-audit-exclude-files '("^\\." "\\.elc$")

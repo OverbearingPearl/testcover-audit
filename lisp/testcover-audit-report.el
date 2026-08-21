@@ -102,33 +102,70 @@ Each HEADERS element is (LABEL TYPE &optional FACE) where TYPE is
 `text', `number' or `percent'.  ROWS is a list of cell lists matching
 the header count.  `number' and `percent' cells are right-aligned;
 `text' cells are left-aligned, and are propertized with FACE when
-given.  `percent' cells are colored by threshold."
-  (let* ((num-cols (length headers))
-         (widths (mapcar (lambda (spec) (length (car spec))) headers))
-         (string-rows
-          (mapcar
-           (lambda (row)
-             (cl-mapcar #'testcover-audit-report--cell-string
-                        row (mapcar #'cadr headers)))
-           rows)))
-    (dolist (srow string-rows)
-      (dotimes (i num-cols)
-        (setf (nth i widths)
-              (max (nth i widths) (length (nth i srow))))))
-    (let ((header-line
-           (mapconcat
-            (lambda (i)
-              (format (format "%%-%ds" (nth i widths))
-                      (car (nth i headers))))
-            (number-sequence 0 (1- num-cols))
-            "  ")))
-      (insert (propertize header-line 'face 'bold) "\n")
-      (insert (make-string (length header-line) ?-) "\n"))
+given.  `percent' cells are colored by threshold.
+
+When `testcover-audit-report-format' is `list', each row is rendered
+as a single \"Label: value\" line instead of an aligned table."
+  (if (eq testcover-audit-report-format 'list)
+      (testcover-audit-report--insert-list-table headers rows)
+    (let* ((num-cols (length headers))
+           (widths (mapcar (lambda (spec) (length (car spec))) headers))
+           (string-rows
+            (mapcar
+             (lambda (row)
+               (cl-mapcar #'testcover-audit-report--cell-string
+                          row (mapcar #'cadr headers)))
+             rows)))
+      (dolist (srow string-rows)
+        (dotimes (i num-cols)
+          (setf (nth i widths)
+                (max (nth i widths) (length (nth i srow))))))
+      (let ((header-line
+             (mapconcat
+              (lambda (i)
+                (format (format "%%-%ds" (nth i widths))
+                        (car (nth i headers))))
+              (number-sequence 0 (1- num-cols))
+              "  ")))
+        (insert (propertize header-line 'face 'bold) "\n")
+        (insert (make-string (length header-line) ?-) "\n"))
+      (cl-loop for row in rows
+               for srow in string-rows
+               do (insert (testcover-audit-report--format-table-row
+                           srow row headers widths))
+               do (insert "\n")))))
+
+(defun testcover-audit-report--insert-list-table (headers rows)
+  "Insert ROWS in list format using HEADERS specs.
+
+Each row is inserted as one line with comma-separated
+\"Label: value\" pairs.  Percent cells keep their threshold face."
+  (when rows
     (cl-loop for row in rows
-             for srow in string-rows
-             do (insert (testcover-audit-report--format-table-row
-                         srow row headers widths))
+             do (insert (testcover-audit-report--format-list-row headers row))
              do (insert "\n"))))
+
+(defun testcover-audit-report--format-list-row (headers row)
+  "Return a list-style line for ROW using HEADERS specs.
+
+Labels come from HEADERS; values from ROW.  Percent cells are
+propertized with the threshold face."
+  (let ((pairs
+         (cl-loop for spec in headers
+                  for value in row
+                  for type = (nth 1 spec)
+                  for label = (car spec)
+                  for face = (nth 2 spec)
+                  for cell = (testcover-audit-report--cell-string value type)
+                  collect
+                  (pcase type
+                    ('percent
+                     (propertize (format "%s: %s" label cell)
+                                 'face (testcover-audit-report--face-for-percent value)))
+                    (_
+                     (let ((s (format "%s: %s" label cell)))
+                       (if face (propertize s 'face face) s)))))))
+    (mapconcat #'identity pairs ", ")))
 
 (defun testcover-audit-report--insert-overall (stats &optional files-count)
   "Insert the \"Overall\" section from STATS plist.
@@ -323,27 +360,33 @@ summary table per function."
                            (plist-get fstats :uncovered)
                            (plist-get fstats :percent))))
                  collected))
-        (let ((func-rows
+        (let* ((threshold testcover-audit-low-coverage-threshold)
+               (func-rows
                (cl-loop for item in collected
                         for key = (file-truename (expand-file-name (nth 1 item)))
                         for funcs = (or (testcover-audit-core--function-stats key) '())
                         append (cl-loop for s in funcs
-                                        when (< (or (plist-get s :percent) 0) 100)
+                                        when (< (or (plist-get s :percent) 0) threshold)
                                         collect (list (nth 0 item)
                                                       (or (plist-get s :name) "<anonymous>")
+                                                      (or (plist-get s :total) 0)
+                                                      (or (plist-get s :covered) 0)
                                                       (or (plist-get s :onevalue) 0)
+                                                      (or (plist-get s :uncovered) 0)
                                                       (or (plist-get s :percent) 0))))))
           (setq func-rows
                 (sort func-rows
                       (lambda (a b)
-                        (or (< (nth 3 a) (nth 3 b))
-                            (and (= (nth 3 a) (nth 3 b))
+                        (or (< (nth 6 a) (nth 6 b))
+                            (and (= (nth 6 a) (nth 6 b))
                                  (string< (car a) (car b)))))))
           (when func-rows
             (insert "\nFunction-level breakdown\n")
             (testcover-audit-report--insert-table
              '(("File" text) ("Function" text)
-               ("1value" number) ("Coverage" percent))
+               ("Total" number) ("Covered" number)
+               ("1value" number) ("Uncovered" number)
+               ("Coverage" percent))
              func-rows)))))))
 
 (provide 'testcover-audit-report)

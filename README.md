@@ -155,7 +155,8 @@ After each ERT run, the configured directory is scanned first and a coverage rep
 |--------|---------|-------------|
 | `testcover-audit-green-threshold` | 80 | Coverage % at/above which the report is green. |
 | `testcover-audit-yellow-threshold` | 50 | Coverage % below which the report is red. |
-| `testcover-audit-report-format` | `table` | Report format: `table` or `list`. |
+| `testcover-audit-report-format` | `table` | Report format: `table` (aligned) or `list` (one record per line, compact for narrow windows). |
+| `testcover-audit-low-coverage-threshold` | 100 | Minimum coverage % for a function to appear in the batch report's function-level breakdown. |
 | `testcover-audit-exclude-files` | `("^\\." "\\.elc$")` | Regexps for excluding files from directory scans. |
 | `testcover-audit-test-file-regexp` | `\\(?:\\`\\|[-_]\\)test\\.el\\'` | Regexp matching test files excluded from source coverage. |
 | `testcover-audit-auto-show-report` | `nil` | Automatically display the report after ERT runs. |

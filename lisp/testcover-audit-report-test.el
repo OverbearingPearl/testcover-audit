@@ -320,5 +320,33 @@
         (kill-buffer buf))
       (delete-file file))))
 
+(ert-deftest testcover-audit-report-test--format-list ()
+  "Test list format rendering when `testcover-audit-report-format' is list."
+  (with-temp-buffer
+    (let ((testcover-audit-report-format 'list))
+      (testcover-audit-report--insert-table
+       '(("Function" text) ("Total" number) ("Coverage" percent))
+       '(("foo" 4 75))))
+    (should (string-match-p "Function: foo" (buffer-string)))
+    (should (string-match-p "Total: 4" (buffer-string)))
+    (should (string-match-p "Coverage: 75%" (buffer-string)))))
+
+(ert-deftest testcover-audit-report-test--batch-report-low-coverage-threshold ()
+  "Test batch-report honors `testcover-audit-low-coverage-threshold'."
+  (let* ((file (file-truename (expand-file-name "a.el" temporary-file-directory)))
+         (testcover-audit--loaded-files
+          (list (cons file
+                      (list (cons 'ok-fn [edebug-ok-coverage edebug-ok-coverage
+                                          edebug-ok-coverage])
+                            (cons 'partial-fn [edebug-unknown edebug-ok-coverage
+                                               edebug-ok-coverage])))))
+         (testcover-audit-low-coverage-threshold 90))
+    (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
+      (testcover-audit-report--batch-report))
+    (with-current-buffer "*Testcover Batch Report*"
+      (should (string-match-p "partial-fn" (buffer-string)))
+      (should-not (string-match-p "ok-fn" (buffer-string)))
+      (should (string-match-p "Uncovered" (buffer-string))))))
+
 (provide 'testcover-audit-report-test)
 ;;; testcover-audit-report-test.el ends here
