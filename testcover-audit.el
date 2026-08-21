@@ -22,13 +22,16 @@
 ;;     Display a brief coverage summary in the echo area.
 ;;
 ;;   testcover-audit-show-all-stats
-;;     Open a detailed report buffer with color-coded statistics.
+;;     Open a detailed report buffer with color-coded overall and
+;;     function-level statistics for the current file.
 ;;
 ;;   testcover-audit-show-function-stats
-;;     Group coverage data by function to locate uncovered logic.
+;;     Show per-function coverage, including line-level breakdown when
+;;     Edebug position data is available.
 ;;
 ;;   testcover-audit-batch-report
-;;     Show an aggregate table for all instrumented files.
+;;     Show an aggregate table for all instrumented files, with
+;;     per-file and low-coverage function breakdown.
 ;;
 ;;   testcover-audit-scan-directory
 ;;     Collect coverage from instrumented definitions in open source buffers.

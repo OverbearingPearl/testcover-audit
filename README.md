@@ -23,7 +23,7 @@ To see the current buffer's coverage percentage in the mode line, enable `testco
 ## Features
 
 - Mode-line coverage percentage for the current buffer.
-- Per-file, per-function, and aggregate batch reports.
+- Per-file overall, per-function, per-line (when position data is available), and aggregate batch reports.
 - Directory scanning and one-command instrumentation.
 - Org/JSON export and CI threshold enforcement.
 - project.el and ERT integration.
@@ -78,9 +78,9 @@ M-x testcover-audit-project-report
 | Command | Purpose |
 |---------|---------|
 | `testcover-audit-show-stats` | Coverage % for the current buffer in the echo area (live data). |
-| `testcover-audit-show-all-stats` | Detailed color-coded report for the current file (live data). |
-| `testcover-audit-show-function-stats` | Per-function breakdown for the current file (live data). |
-| `testcover-audit-batch-report` | Aggregate report for all scan-collected files. |
+| `testcover-audit-show-all-stats` | Detailed color-coded report for the current file, including overall and function-level breakdown (live data). |
+| `testcover-audit-show-function-stats` | Per-function breakdown for the current file, including line-level detail when position data is available (live data). |
+| `testcover-audit-batch-report` | Aggregate report for all scan-collected files, with per-file and low-coverage function breakdown. |
 | `testcover-audit-scan-directory` | Collect a coverage snapshot from open, instrumented buffers under a directory. |
 | `testcover-audit-project-report` | Scan the current project and show aggregate report. |
 | `testcover-audit-instrument-directory` | Instrument source files under a directory with `testcover-start`. |
