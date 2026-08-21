@@ -16,7 +16,13 @@
   (let ((table (testcover-audit-report--format-table '(("a" 1) ("bb" 22)))))
     (should (string-match-p "a" table))
     (should (string-match-p "bb" table))
-    (should (string-match-p "22" table))))
+    (should (string-match-p "22" table)))
+  (let ((table (testcover-audit-report--format-table
+                '(("h1" "h2" "h3") ("a" 1 2) ("bbb" 33 44)))))
+    (should (string-match-p "h1" table))
+    (should (string-match-p "h3" table))
+    (should (string-match-p "33" table))
+    (should (string-match-p "44" table))))
 
 (ert-deftest testcover-audit-report-test--face-for-percent ()
   "Test color threshold face selection."
@@ -101,6 +107,44 @@
               (should (string-match-p "Coverage %" (buffer-string)))
               (should (string-match-p "75" (buffer-string))))))
       (kill-buffer buf)
+      (delete-file file))))
+
+(ert-deftest testcover-audit-report-test--show-function-stats-line-level ()
+  "Show-function-stats shows line breakdown with live position data."
+  (let* ((file (make-temp-file "tca-line-report" nil ".el"))
+         (symbol (make-symbol "tca-line-report-fn"))
+         (buf (find-file-noselect file))
+         (display-buffer-called nil))
+    (unwind-protect
+        (with-current-buffer buf
+          (insert "(defun tca-line-report-fn ()\n"
+                  "  (let ((x 1))\n"
+                  "    (message \"%d\" x)\n"
+                  "    nil))\n")
+          (setq-local edebug-form-data
+                      (list (edebug--make-form-data-entry
+                             symbol
+                             (copy-marker (point-min))
+                             (copy-marker (point-max)))))
+          (put symbol 'edebug
+               (list (copy-marker (point-min)) nil (vector 0 20 40)))
+          (put symbol 'edebug-behavior 'testcover)
+          (put symbol 'edebug-coverage
+               [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
+          (let ((testcover-audit--loaded-files nil))
+            (cl-letf (((symbol-function 'display-buffer)
+                       (lambda (&rest _) (setq display-buffer-called t))))
+              (testcover-audit-report--show-function-stats)))
+          (should display-buffer-called)
+          (with-current-buffer "*Testcover Function Report*"
+            (should (string-match-p "tca-line-report-fn" (buffer-string)))
+            (should (string-match-p "Line" (buffer-string)))
+            (should (string-match-p "Total" (buffer-string)))
+            (should (string-match-p "Uncovered" (buffer-string)))))
+      (cl-remprop symbol 'edebug)
+      (cl-remprop symbol 'edebug-behavior)
+      (cl-remprop symbol 'edebug-coverage)
+      (when (buffer-live-p buf) (kill-buffer buf))
       (delete-file file))))
 
 (ert-deftest testcover-audit-report-test--show-function-stats-mixed ()

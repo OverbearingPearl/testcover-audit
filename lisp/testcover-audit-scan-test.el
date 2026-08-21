@@ -87,6 +87,44 @@
             messages)))
       (delete-directory dir t))))
 
+(ert-deftest testcover-audit-scan-test--definition-line-stats ()
+  "Definition-line-stats groups coverage by source line."
+  (let* ((dir (make-temp-file "tca-line" t))
+         (file (expand-file-name "foo.el" dir))
+         (symbol (make-symbol "tca-line-fn"))
+         (buf nil))
+    (unwind-protect
+        (progn
+          (with-temp-file file
+            (insert "(defun tca-line-fn ()\n"
+                    "  (let ((x 1))\n"
+                    "    (message \"%d\" x)\n"
+                    "    nil))\n"))
+          (setq buf (find-file-noselect file))
+          (with-current-buffer buf
+            ;; Simulate edebug's position data: (def-mark unused points).
+            (put symbol 'edebug
+                 (list (copy-marker (point-min))
+                       nil
+                       (vector 0 20 40)))
+            (put symbol 'edebug-behavior 'testcover)
+            (put symbol 'edebug-coverage
+                 [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
+            (let ((line-stats (testcover-audit-scan--definition-line-stats
+                               symbol
+                               [edebug-unknown
+                                edebug-ok-coverage
+                                edebug-ok-coverage])))
+              (should (equal (mapcar #'car line-stats) '(1 2 3)))
+              (should (= (plist-get (cdr (nth 0 line-stats)) :uncovered) 1))
+              (should (= (plist-get (cdr (nth 1 line-stats)) :covered) 1))
+              (should (= (plist-get (cdr (nth 2 line-stats)) :total) 1)))))
+      (cl-remprop symbol 'edebug)
+      (cl-remprop symbol 'edebug-behavior)
+      (cl-remprop symbol 'edebug-coverage)
+      (when (buffer-live-p buf) (kill-buffer buf))
+      (delete-directory dir t))))
+
 (ert-deftest testcover-audit-scan-test--coverage-vector-p ()
   (should
    (testcover-audit-scan--coverage-vector-p

@@ -64,6 +64,67 @@ visiting buffer or no testcover-instrumented definitions."
              (testcover-audit-core--file-function-stats
               (cons key entries)))))))
 
+(defun testcover-audit-scan--definition-line-stats (symbol coverage)
+  "Return per-line stats for SYMBOL's COVERAGE vector.
+
+Uses Edebug's stored position data to map each coverage index to a
+buffer position, then groups forms by source line.  Current buffer
+must contain the instrumented definition.
+
+Return a list of (LINE . STATS-PLIST) sorted by LINE, or nil when
+SYMBOL has no usable position data."
+  (let* ((edata (get symbol 'edebug))
+         (def-mark (car edata))
+         (points (nth 2 edata)))
+    (when (and (markerp def-mark)
+               (marker-buffer def-mark)
+               (vectorp points)
+               (> (length points) 0))
+      (let* ((len (min (length coverage) (length points)))
+             (lines (make-hash-table :test 'eql)))
+        (dotimes (i len)
+          (let* ((type (testcover-audit-core--coverage-type
+                        (aref coverage i)))
+                 (stats (gethash (line-number-at-pos
+                                  (+ def-mark (aref points i)))
+                                 lines
+                                 (list :total 0 :covered 0
+                                       :onevalue 0 :uncovered 0))))
+            (unless (eq type 'ignored)
+              (cl-incf (plist-get stats :total))
+              (cl-case type
+                (covered   (cl-incf (plist-get stats :covered)))
+                (onevalue  (cl-incf (plist-get stats :onevalue)))
+                (uncovered (cl-incf (plist-get stats :uncovered)))))
+            (puthash (line-number-at-pos (+ def-mark (aref points i)))
+                     stats lines)))
+        (let (result)
+          (maphash (lambda (line stats)
+                     (push (cons line stats) result))
+                   lines)
+          (sort result (lambda (a b) (< (car a) (car b)))))))))
+
+(defun testcover-audit-scan--buffer-function-line-stats (file)
+  "Return per-function per-line coverage for FILE from its visiting buffer.
+
+Return a list of (SYMBOL . ((LINE . STATS-PLIST) ...)) entries, or nil
+when FILE has no visiting buffer or no usable position data."
+  (let* ((key (file-truename (expand-file-name file)))
+         (buf (find-buffer-visiting key)))
+    (when (buffer-live-p buf)
+      (with-current-buffer buf
+        (let* ((entries (testcover-audit-scan--buffer-covered-definitions buf))
+               (line-entries
+                (delq nil
+                      (mapcar (lambda (entry)
+                                (let ((line-stats
+                                       (testcover-audit-scan--definition-line-stats
+                                        (car entry) (cdr entry))))
+                                  (and line-stats
+                                       (cons (car entry) line-stats))))
+                              entries))))
+          (and line-entries line-entries))))))
+
 (defun testcover-audit-scan--buffer-stats (file)
   "Return live coverage stats for FILE from its visiting buffer.
 

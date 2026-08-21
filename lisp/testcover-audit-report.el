@@ -61,23 +61,46 @@ to the `testcover-audit--loaded-files' snapshot collected by
         (display-buffer (current-buffer))))))
 
 (defun testcover-audit-report--show-function-stats ()
-  "Show per-function coverage report."
+  "Show per-function coverage report.
+
+When the current buffer has live testcover position data, show a
+line-by-line breakdown for each function.  Otherwise fall back to a
+summary table per function."
   (let* ((file (buffer-file-name))
-         (rows (and file
-                    (or (testcover-audit-scan--buffer-function-stats file)
-                        (testcover-audit-core--function-stats
-                         (file-truename (expand-file-name file)))))))
-    (if (null rows)
-        (message "No coverage data for %s.\nRun `testcover-start', run your tests, and keep the buffer open."
-                 (or file "(buffer)"))
-      (with-current-buffer (get-buffer-create "*Testcover Function Report*")
-        (erase-buffer)
-        (insert (testcover-audit-report--format-table
-                 (mapcar (lambda (s)
-                           (list (plist-get s :name)
-                                 (format "%d%%" (or (plist-get s :percent) 0))))
-                         rows)))
-        (display-buffer (current-buffer))))))
+         (line-entries (and file
+                            (testcover-audit-scan--buffer-function-line-stats
+                             file))))
+    (if line-entries
+        (with-current-buffer (get-buffer-create "*Testcover Function Report*")
+          (erase-buffer)
+          (dolist (entry line-entries)
+            (insert (format "%s\n" (symbol-name (car entry))))
+            (insert (testcover-audit-report--format-table
+                     (cons (list "Line" "Total" "Covered" "1value" "Uncovered")
+                           (mapcar (lambda (ls)
+                                     (list (number-to-string (car ls))
+                                           (plist-get (cdr ls) :total)
+                                           (plist-get (cdr ls) :covered)
+                                           (plist-get (cdr ls) :onevalue)
+                                           (plist-get (cdr ls) :uncovered)))
+                                   (cdr entry)))))
+            (insert "\n"))
+          (display-buffer (current-buffer)))
+      (let* ((rows (and file
+                        (or (testcover-audit-scan--buffer-function-stats file)
+                            (testcover-audit-core--function-stats
+                             (file-truename (expand-file-name file)))))))
+        (if (null rows)
+            (message "No coverage data for %s.\nRun `testcover-start', run your tests, and keep the buffer open."
+                     (or file "(buffer)"))
+          (with-current-buffer (get-buffer-create "*Testcover Function Report*")
+            (erase-buffer)
+            (insert (testcover-audit-report--format-table
+                     (mapcar (lambda (s)
+                               (list (plist-get s :name)
+                                     (format "%d%%" (or (plist-get s :percent) 0))))
+                             rows)))
+            (display-buffer (current-buffer))))))))
 
 (defun testcover-audit-report--batch-report ()
   "Show a detailed coverage report for all instrumented files."
@@ -183,26 +206,31 @@ Strings are used verbatim; all other values use `prin1-to-string'."
     (prin1-to-string value)))
 
 (defun testcover-audit-report--format-table (rows)
-  "Format ROWS as an aligned table string."
-  (let ((width0 0)
-        (width1 0)
-        (lines))
-    ;; Compute widths.
-    (dolist (row rows)
-      (let ((cell0 (testcover-audit-report--format-cell (nth 0 row)))
-            (cell1 (testcover-audit-report--format-cell (nth 1 row))))
-        (when (> (length cell0) width0)
-          (setq width0 (length cell0)))
-        (when (> (length cell1) width1)
-          (setq width1 (length cell1)))))
-    ;; Build lines.
-    (dolist (row rows)
-      (let ((cell0 (testcover-audit-report--format-cell (nth 0 row)))
-            (cell1 (testcover-audit-report--format-cell (nth 1 row))))
-        (push (format (format "%%-%ds  %%-%ds" width0 width1)
-                      cell0 cell1)
-              lines)))
-    (mapconcat #'identity (nreverse lines) "\n")))
+  "Format ROWS as an aligned table string.
+
+Each row is a list of cells.  Strings are inserted verbatim; all other
+values are converted with `prin1-to-string'."
+  (if (null rows)
+      ""
+    (let* ((num-cols (length (car rows)))
+           (widths (make-vector num-cols 0)))
+      (dolist (row rows)
+        (dotimes (i num-cols)
+          (let ((cell (testcover-audit-report--format-cell (nth i row))))
+            (setf (aref widths i) (max (aref widths i) (length cell))))))
+      (mapconcat
+       (lambda (row)
+         (mapconcat
+          #'identity
+          (cl-mapcar
+           (lambda (width cell)
+             (format (format "%%-%ds" width)
+                     (testcover-audit-report--format-cell cell)))
+           (append widths nil)
+           row)
+          "  "))
+       rows
+       "\n"))))
 
 (defun testcover-audit-report--face-for-percent (percent)
   "Return the face appropriate for PERCENT according to thresholds."
