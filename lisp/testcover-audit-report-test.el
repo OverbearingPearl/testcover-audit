@@ -98,11 +98,10 @@
                                                             testcover-1value
                                                             edebug-ok-coverage
                                                             edebug-ok-coverage])))))
-                (display-buffer-called nil))
-            (cl-letf (((symbol-function 'display-buffer)
-                       (lambda (&rest _) (setq display-buffer-called t))))
-              (testcover-audit-report--show-all-stats))
-            (should display-buffer-called)
+                (_display-buffer-called nil))
+            (testcover-audit-report--show-all-stats)
+            (should (eq (current-buffer)
+                        (get-buffer "*Testcover Audit Report*")))
             (with-current-buffer "*Testcover Audit Report*"
               (should (string-match-p "Testcover Audit Report" (buffer-string)))
               (should (string-match-p "Function-level breakdown" (buffer-string)))
@@ -115,7 +114,7 @@
   (let* ((file (make-temp-file "tca-line-report" nil ".el"))
          (symbol (make-symbol "tca-line-report-fn"))
          (buf (find-file-noselect file))
-         (display-buffer-called nil))
+         (_display-buffer-called nil))
     (unwind-protect
         (with-current-buffer buf
           (insert "(defun tca-line-report-fn ()\n"
@@ -133,10 +132,9 @@
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
           (let ((testcover-audit-core--loaded-files nil))
-            (cl-letf (((symbol-function 'display-buffer)
-                       (lambda (&rest _) (setq display-buffer-called t))))
-              (testcover-audit-report--show-function-stats)))
-          (should display-buffer-called)
+            (testcover-audit-report--show-function-stats))
+          (should (eq (current-buffer)
+                      (get-buffer "*Testcover Function Report*")))
           (with-current-buffer "*Testcover Function Report*"
             (should (string-match-p "Testcover Function Report" (buffer-string)))
             (should (string-match-p "tca-line-report-fn" (buffer-string)))
@@ -162,11 +160,10 @@
                  (list (cons (file-truename file)
                              (list (cons 'good-fn [edebug-ok-coverage edebug-ok-coverage])
                                    (cons 'bad-fn [edebug-unknown edebug-unknown])))))
-                (display-buffer-called nil))
-            (cl-letf (((symbol-function 'display-buffer)
-                       (lambda (&rest _) (setq display-buffer-called t))))
-              (testcover-audit-report--show-function-stats))
-            (should display-buffer-called)
+                (_display-buffer-called nil))
+            (testcover-audit-report--show-function-stats)
+            (should (eq (current-buffer)
+                        (get-buffer "*Testcover Function Report*")))
             (with-current-buffer "*Testcover Function Report*"
               (should (string-match-p "good-fn" (buffer-string)))
               (should (string-match-p "bad-fn" (buffer-string)))
@@ -228,7 +225,7 @@
   (let* ((file (make-temp-file "tca-live-all" nil ".el"))
          (symbol (make-symbol "tca-live-all-fn"))
          (buf (find-file-noselect file))
-         (display-buffer-called nil))
+         (_display-buffer-called nil))
     (unwind-protect
         (with-current-buffer buf
           (setq-local edebug-form-data
@@ -241,10 +238,9 @@
                [edebug-unknown testcover-1value
                 edebug-ok-coverage edebug-ok-coverage])
           (let ((testcover-audit-core--loaded-files nil))
-            (cl-letf (((symbol-function 'display-buffer)
-                       (lambda (&rest _) (setq display-buffer-called t))))
-              (testcover-audit-report--show-all-stats)))
-          (should display-buffer-called)
+            (testcover-audit-report--show-all-stats))
+          (should (eq (current-buffer)
+                      (get-buffer "*Testcover Audit Report*")))
           (with-current-buffer "*Testcover Audit Report*"
             (should (string-match-p "Function-level breakdown" (buffer-string)))
             (should (string-match-p "75" (buffer-string)))))
@@ -258,7 +254,7 @@
   (let* ((file (make-temp-file "tca-live-fn" nil ".el"))
          (symbol (make-symbol "tca-live-fn"))
          (buf (find-file-noselect file))
-         (display-buffer-called nil))
+         (_display-buffer-called nil))
     (unwind-protect
         (with-current-buffer buf
           (setq-local edebug-form-data
@@ -270,10 +266,9 @@
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-unknown edebug-unknown])
           (let ((testcover-audit-core--loaded-files nil))
-            (cl-letf (((symbol-function 'display-buffer)
-                       (lambda (&rest _) (setq display-buffer-called t))))
-              (testcover-audit-report--show-function-stats)))
-          (should display-buffer-called)
+            (testcover-audit-report--show-function-stats))
+          (should (eq (current-buffer)
+                      (get-buffer "*Testcover Function Report*")))
           (with-current-buffer "*Testcover Function Report*"
             (should (string-match-p "tca-live-fn" (buffer-string)))
             (should (string-match-p "0%" (buffer-string)))))
@@ -287,7 +282,7 @@
   (let* ((file (make-temp-file "tca-all-no-line" nil ".el"))
          (symbol (make-symbol "tca-all-no-line-fn"))
          (buf (find-file-noselect file))
-         (display-buffer-called nil))
+         (_display-buffer-called nil))
     (unwind-protect
         (with-current-buffer buf
           (insert "(defun tca-all-no-line-fn ()\n"
@@ -304,10 +299,9 @@
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
           (let ((testcover-audit-core--loaded-files nil))
-            (cl-letf (((symbol-function 'display-buffer)
-                       (lambda (&rest _) (setq display-buffer-called t))))
-              (testcover-audit-report--show-all-stats)))
-          (should display-buffer-called)
+            (testcover-audit-report--show-all-stats))
+          (should (eq (current-buffer)
+                      (get-buffer "*Testcover Audit Report*")))
           (with-current-buffer "*Testcover Audit Report*"
             (should (string-match-p "Function-level breakdown" (buffer-string)))
             (should-not (string-match-p "Line-level breakdown" (buffer-string)))))
@@ -354,11 +348,10 @@
          (list (cons (file-truename
                       (expand-file-name "a.el" temporary-file-directory))
                      (list (cons 'fn [edebug-unknown edebug-unknown])))))
-        (display-buffer-called nil))
-    (cl-letf (((symbol-function 'display-buffer)
-               (lambda (&rest _) (setq display-buffer-called t))))
-      (testcover-audit-report--batch-report))
-    (should display-buffer-called)
+        (_display-buffer-called nil))
+    (testcover-audit-report--batch-report)
+    (should (eq (current-buffer)
+                (get-buffer "*Testcover Batch Report*")))
     (with-current-buffer "*Testcover Batch Report*"
       (should (eq (current-local-map)
                   testcover-audit-report--navigation-map))
@@ -371,16 +364,15 @@
   "Function report buffer uses the navigation keymap."
   (let* ((file (make-temp-file "tca-fn-nav-map" nil ".el"))
          (buf (find-file-noselect file))
-         (display-buffer-called nil))
+         (_display-buffer-called nil))
     (unwind-protect
         (with-current-buffer buf
           (let ((testcover-audit-core--loaded-files
                  (list (cons (file-truename file)
                              (list (cons 'fn [edebug-unknown edebug-unknown]))))))
-            (cl-letf (((symbol-function 'display-buffer)
-                       (lambda (&rest _) (setq display-buffer-called t))))
-              (testcover-audit-report--show-function-stats)))
-          (should display-buffer-called)
+            (testcover-audit-report--show-function-stats))
+          (should (eq (current-buffer)
+                      (get-buffer "*Testcover Function Report*")))
           (with-current-buffer "*Testcover Function Report*"
             (should (eq (current-local-map)
                         testcover-audit-report--navigation-map))))

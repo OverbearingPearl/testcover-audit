@@ -244,16 +244,16 @@ replacing all other windows.  The resulting buffer is made read-only,
 uses `testcover-audit-report--navigation-map' as its local keymap, and
 HEADER is shown as its header line when non-nil."
   (declare (indent 2))
-  `(with-current-buffer (get-buffer-create ,buffer-name)
-     (let ((inhibit-read-only t))
-       (erase-buffer)
-       ,@body)
-     (setq buffer-read-only t)
-     (setq header-line-format ,header)
-     (use-local-map testcover-audit-report--navigation-map)
-     (goto-char (point-min))
-     (display-buffer (current-buffer))
-     (switch-to-buffer (current-buffer))
+  `(let ((buf (get-buffer-create ,buffer-name)))
+     (with-current-buffer buf
+       (let ((inhibit-read-only t))
+         (erase-buffer)
+         ,@body)
+       (setq buffer-read-only t)
+       (setq header-line-format ,header)
+       (use-local-map testcover-audit-report--navigation-map)
+       (goto-char (point-min)))
+     (switch-to-buffer buf)
      (delete-other-windows)))
 
 (defun testcover-audit-report--message-no-data (file)
