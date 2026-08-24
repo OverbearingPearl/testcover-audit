@@ -69,8 +69,9 @@
 ;;
 ;; All user-facing configuration is grouped under `testcover-audit'.
 ;;
-;; Internal development helpers (`testcover-audit--reload-modules',
-;; `testcover-audit--run-tests') are not part of the user-facing API.
+;; Internal development helper (`testcover-audit--reload-modules') is not
+;; part of the user-facing API.  The batch test runner is provided by
+;; `testcover-audit-test.el' (see `testcover-audit-test-run').
 
 ;;; Code:
 

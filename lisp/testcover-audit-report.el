@@ -264,7 +264,7 @@ HEADER is shown as its header line when non-nil."
   "Return coverage stats for FILE.
 
 Prefer live testcover data from the buffer visiting FILE; fall back
-to the `testcover-audit--loaded-files' snapshot collected by
+to the `testcover-audit-core--loaded-files' snapshot collected by
 `testcover-audit-scan-directory'.  Return nil when no data is available."
   (let* ((key (and file (file-truename (expand-file-name file))))
          (stats (and key
@@ -276,7 +276,7 @@ to the `testcover-audit--loaded-files' snapshot collected by
   "Return per-function coverage stats for FILE.
 
 Prefer live testcover data from the visiting buffer; fall back to the
-`testcover-audit--loaded-files' snapshot.  Return nil when no data is
+`testcover-audit-core--loaded-files' snapshot.  Return nil when no data is
 available."
   (and file
        (or (testcover-audit-scan--buffer-function-stats file)
@@ -293,6 +293,22 @@ available."
                   (stats (and key (testcover-audit-core--file-stats key))))
              (and stats (list (file-relative-name fpath) fpath stats))))
          entries)))
+
+;;; Report navigation
+
+(defvar testcover-audit-report--file-stats-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'testcover-audit-report--goto-file-stats-command)
+    (define-key map [mouse-2] #'testcover-audit-report--goto-file-stats-command)
+    map)
+  "Keymap for rows that jump to a file's detailed report.")
+
+(defvar testcover-audit-report--function-stats-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'testcover-audit-report--goto-function-stats-command)
+    (define-key map [mouse-2] #'testcover-audit-report--goto-function-stats-command)
+    map)
+  "Keymap for rows that jump to a function's detailed report.")
 
 ;;; Table variants
 
@@ -353,22 +369,6 @@ ENTRY is (SYMBOL . ((LINE . STATS-PLIST) ...))."
                         (or (plist-get stats :total) 0)))))
              line-stats))
     (insert "\n")))
-
-;;; Report navigation
-
-(defvar testcover-audit-report--file-stats-keymap
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "RET") #'testcover-audit-report--goto-file-stats-command)
-    (define-key map [mouse-2] #'testcover-audit-report--goto-file-stats-command)
-    map)
-  "Keymap for rows that jump to a file's detailed report.")
-
-(defvar testcover-audit-report--function-stats-keymap
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "RET") #'testcover-audit-report--goto-function-stats-command)
-    (define-key map [mouse-2] #'testcover-audit-report--goto-function-stats-command)
-    map)
-  "Keymap for rows that jump to a function's detailed report.")
 
 (defun testcover-audit-report--add-row-properties (start end props)
   "Add navigation PROPS to report row region START..END.

@@ -139,7 +139,7 @@ Exports use only the snapshot collected by `testcover-audit-scan-directory`. Wit
   (let ((result (ert-run-tests-batch t)))
     ;; 3. Collect data and enforce the coverage threshold.
     (testcover-audit-scan-directory root)
-    (unless testcover-audit--loaded-files
+    (unless testcover-audit-core--loaded-files
       (error "No coverage data collected - did you run testcover-start?"))
     (testcover-audit-ci-check)
     ;; 4. Test failures must also fail CI.
@@ -182,7 +182,7 @@ After each ERT run, the configured directory is scanned first and a coverage rep
 ## How scanning works
 
 - The `show-*` commands (`show-stats`, `show-all-stats`, `show-function-stats`) read live testcover data directly from the current buffer; they do not require a scan.
-- `testcover-audit-scan-directory` collects a snapshot from open, instrumented buffers into `testcover-audit--loaded-files` for batch/export/CI commands. It never calls `testcover-start` and never loads files.
+- `testcover-audit-scan-directory` collects a snapshot from open, instrumented buffers into `testcover-audit-core--loaded-files` for batch/export/CI commands. It never calls `testcover-start` and never loads files.
 - Files that are not open, have dead buffers, or contain no testcover-instrumented definitions are skipped. When any files are skipped, the scan message reports the reason counts.
 - Test files are excluded by default; set `testcover-audit-test-file-regexp` to `nil` to include them.
 

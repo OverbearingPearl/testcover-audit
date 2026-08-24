@@ -53,7 +53,7 @@ or a `(noreturn . INDEX)' marker in each slot."
   "Return per-function coverage stats for FILE from its visiting buffer.
 
 Reads live testcover data from the buffer visiting FILE without
-touching `testcover-audit--loaded-files'.  Return nil when FILE has no
+touching `testcover-audit-core--loaded-files'.  Return nil when FILE has no
 visiting buffer or no testcover-instrumented definitions."
   (let* ((key (file-truename (expand-file-name file)))
          (buf (find-buffer-visiting key)))
@@ -129,7 +129,7 @@ when FILE has no visiting buffer or no usable position data."
 
 Unlike `testcover-audit-scan--scan-directory', this reads testcover
 coverage directly from the buffer visiting FILE and does not touch
-`testcover-audit--loaded-files'.
+`testcover-audit-core--loaded-files'.
 
 Return nil when FILE has no visiting buffer or no testcover-instrumented
 definitions."
@@ -180,7 +180,7 @@ The command does NOT instrument files.  It gathers coverage vectors from
 testcover-instrumented definitions associated with buffers visiting .el files
 under DIRECTORY and having already been instrumented with `testcover-start'
 running the relevant tests.  Files that are not open or not instrumented
-are skipped; use `testcover-audit--loaded-files' to see what was found."
+are skipped; use `testcover-audit-core--loaded-files' to see what was found."
   (let ((files (testcover-audit-scan--source-files directory))
         (not-open 0)
         (dead-buffer 0)

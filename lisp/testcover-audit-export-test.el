@@ -69,7 +69,7 @@
           (testcover-audit-export--export-json tmp)
           (with-temp-buffer
             (insert-file-contents tmp)
-            (let* ((parsed (json-parse-string (buffer-string)))
+            (let* ((parsed (json-parse-string (buffer-string) :object-type 'hash-table))
                    (percent (gethash "percent" parsed))
                    (total (gethash "total" parsed)))
               (should (numberp percent))
