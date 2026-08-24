@@ -238,9 +238,10 @@ When FILES-COUNT is non-nil, include a files count line."
   (insert "\n"))
 
 (defmacro testcover-audit-report--in-report-buffer (buffer-name header &rest body)
-  "Run BODY in BUFFER-NAME after erasing it, then display the buffer.
-The resulting buffer is made read-only, uses
-`testcover-audit-report--navigation-map' as its local keymap, and
+  "Run BODY in BUFFER-NAME after erasing it.
+Then display the buffer as the only window of the current frame,
+replacing all other windows.  The resulting buffer is made read-only,
+uses `testcover-audit-report--navigation-map' as its local keymap, and
 HEADER is shown as its header line when non-nil."
   (declare (indent 2))
   `(with-current-buffer (get-buffer-create ,buffer-name)
@@ -251,7 +252,9 @@ HEADER is shown as its header line when non-nil."
      (setq header-line-format ,header)
      (use-local-map testcover-audit-report--navigation-map)
      (goto-char (point-min))
-     (display-buffer (current-buffer))))
+     (display-buffer (current-buffer))
+     (switch-to-buffer (current-buffer))
+     (delete-other-windows)))
 
 (defun testcover-audit-report--message-no-data (file)
   "Message the standard no-coverage warning for FILE."
