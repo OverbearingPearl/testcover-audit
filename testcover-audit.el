@@ -4,7 +4,7 @@
 ;; Author: OverbearingPearl <OverbearingPearl@outlook.com>
 ;; Assisted-by: Deepseek:deepseek-v4-flash
 ;; URL: https://github.com/OverbearingPearl/testcover-audit
-;; Version: 0.1.9
+;; Version: 0.1.10
 ;; Package-Requires: ((emacs "27.1") (project "0.9.8"))
 ;; Keywords: tools, test, coverage
 ;; SPDX-License-Identifier: GPL-3.0-or-later
