@@ -12,7 +12,7 @@
 
 (ert-deftest testcover-audit-export-test--collected-data ()
   "Test exports aggregate collected coverage vectors."
-  (let ((testcover-audit--loaded-files
+  (let ((testcover-audit-core--loaded-files
          '(("a.el" . ((a-function . [edebug-unknown testcover-1value
                                        edebug-ok-coverage edebug-ok-coverage])))
            ("b.el" . ((b-function . [edebug-unknown edebug-unknown
@@ -23,7 +23,7 @@
             (testcover-audit-export--export-json tmp)
             (with-temp-buffer
               (insert-file-contents tmp)
-              (let ((parsed (json-parse-string (buffer-string))))
+              (let* ((parsed (json-parse-string (buffer-string) :object-type 'hash-table)))
                 (should (= (gethash "total" parsed) 8))
                 (should (= (gethash "covered" parsed) 2))
                 (should (= (gethash "onevalue" parsed) 3))
@@ -33,7 +33,7 @@
 
 (ert-deftest testcover-audit-export-test--no-data ()
   "Test that exporting without coverage data fails."
-  (let ((testcover-audit--loaded-files nil)
+  (let ((testcover-audit-core--loaded-files nil)
         (tmp (make-temp-file "tca-json-no-data" nil ".json")))
     (unwind-protect
         (should-error (testcover-audit-export--export-json tmp)
@@ -43,7 +43,7 @@
 (ert-deftest testcover-audit-export-test--org ()
   "Test Org export produces expected output."
   (let ((tmp (make-temp-file "tca-org-test" nil ".org"))
-        (testcover-audit--loaded-files
+        (testcover-audit-core--loaded-files
          '(("fixture.el" . ((fixture-function . [edebug-unknown
                                                   testcover-1value
                                                   edebug-ok-coverage
@@ -59,7 +59,7 @@
 (ert-deftest testcover-audit-export-test--json ()
   "Test JSON export produces valid JSON."
   (let ((tmp (make-temp-file "tca-json-test" nil ".json"))
-        (testcover-audit--loaded-files
+        (testcover-audit-core--loaded-files
          '(("fixture.el"
             . ((fixture-function
                 . [edebug-unknown testcover-1value
@@ -80,7 +80,7 @@
 
 (ert-deftest testcover-audit-export-test--ci-check-success ()
   "Test ci-check passes when coverage meets threshold."
-  (let ((testcover-audit--loaded-files
+  (let ((testcover-audit-core--loaded-files
          '(("a.el" . ((fn . [edebug-ok-coverage edebug-ok-coverage])))))
         (testcover-audit-ci-threshold 80)
         (kill-emacs-called nil))
@@ -91,7 +91,7 @@
 
 (ert-deftest testcover-audit-export-test--ci-check-failure ()
   "Test ci-check fails and kills Emacs in noninteractive mode when below threshold."
-  (let ((testcover-audit--loaded-files
+  (let ((testcover-audit-core--loaded-files
          '(("a.el" . ((fn . [edebug-unknown edebug-unknown])))))
         (testcover-audit-ci-threshold 80)
         (kill-emacs-called nil))

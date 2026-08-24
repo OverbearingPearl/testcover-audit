@@ -19,9 +19,8 @@
 (require 'cl-lib)
 (require 'seq)
 
-(defvar testcover-audit--loaded-files nil
-  "Alist of (file . function-coverage-entries) pairs.
-Collected by `testcover-audit-scan-directory'.")
+;; `testcover-audit-core--loaded-files' is the single source of truth
+;; for collected coverage data; no local redefinition here.
 
 (defun testcover-audit-scan--coverage-vector-p (vec)
   "Return non-nil if VEC is a non-empty testcover coverage vector.
@@ -186,7 +185,7 @@ are skipped; use `testcover-audit--loaded-files' to see what was found."
         (not-open 0)
         (dead-buffer 0)
         (no-instrumented 0))
-    (setq testcover-audit--loaded-files nil)
+    (setq testcover-audit-core--loaded-files nil)
     (dolist (file files)
       (let ((buf (find-buffer-visiting file)))
         (cond
@@ -198,14 +197,14 @@ are skipped; use `testcover-audit--loaded-files' to see what was found."
           (with-current-buffer buf
             (let ((entries (testcover-audit-scan--buffer-covered-definitions buf)))
               (if entries
-                  (push (cons file entries) testcover-audit--loaded-files)
+                  (push (cons file entries) testcover-audit-core--loaded-files)
                 (cl-incf no-instrumented))))))))
     (message "Scanned %d files, collected coverage from %d."
-             (length files) (length testcover-audit--loaded-files))
-    (when (< (length testcover-audit--loaded-files) (length files))
+             (length files) (length testcover-audit-core--loaded-files))
+    (when (< (length testcover-audit-core--loaded-files) (length files))
       (message
        "Skipped %d files: %d not open, %d with dead buffers, %d without testcover-instrumented definitions."
-       (- (length files) (length testcover-audit--loaded-files))
+       (- (length files) (length testcover-audit-core--loaded-files))
        not-open dead-buffer no-instrumented))))
 
 (defun testcover-audit-scan--dependency-order (files)

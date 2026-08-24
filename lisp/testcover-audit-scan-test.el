@@ -38,7 +38,7 @@
                   edebug-ok-coverage edebug-ok-coverage])
             (let ((testcover-audit-exclude-files nil))
               (testcover-audit-scan--scan-directory dir))
-            (let ((entry (assoc (file-truename file) testcover-audit--loaded-files)))
+            (let ((entry (assoc (file-truename file) testcover-audit-core--loaded-files)))
               (should entry)
               (should (equal (cdr entry)
                              `((,symbol . [edebug-unknown testcover-1value
@@ -62,7 +62,7 @@
               (let ((testcover-audit-exclude-files nil))
                 (testcover-audit-scan--scan-directory dir)))
             (should (= start-calls 0))
-            (should-not (assoc (file-truename file) testcover-audit--loaded-files)))
+            (should-not (assoc (file-truename file) testcover-audit-core--loaded-files)))
         (kill-buffer buf)
         (delete-directory dir t)))))
 
@@ -158,7 +158,7 @@
           (let ((testcover-audit-exclude-files nil))
             (testcover-audit-scan--scan-directory dir))
           (should-not (assoc (file-truename file)
-                             testcover-audit--loaded-files)))
+                             testcover-audit-core--loaded-files)))
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
       (when (buffer-live-p buf)
@@ -191,7 +191,7 @@
                              (symbol-name symbol)))
             (should (= (plist-get (car rows) :percent) 75)))
           (should-not (assoc (file-truename file)
-                             testcover-audit--loaded-files)))
+                             testcover-audit-core--loaded-files)))
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
       (when (buffer-live-p buf)
@@ -233,6 +233,7 @@
 
 (ert-deftest testcover-audit-scan-test--instrument-directory ()
   "Instrument-directory instruments source files but skips test/excluded files."
+  (require 'testcover)
   (let* ((dir (make-temp-file "tca-instr" t))
          (src1 (expand-file-name "src1.el" dir))
          (src2 (expand-file-name "src2.el" dir))
@@ -256,6 +257,7 @@
 
 (ert-deftest testcover-audit-scan-test--instrument-directory-adds-load-path ()
   "Instrument-directory adds each source directory to `load-path'."
+  (require 'testcover)
   (let* ((dir (make-temp-file "tca-instr-loadpath" t))
          (src1 (expand-file-name "src1.el" dir))
          (src2 (expand-file-name "sub" dir))

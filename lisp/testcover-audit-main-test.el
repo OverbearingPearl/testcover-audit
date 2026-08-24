@@ -28,7 +28,7 @@
          (buffer (find-file-noselect file)))
     (unwind-protect
         (with-current-buffer buffer
-          (let ((testcover-audit--loaded-files
+          (let ((testcover-audit-core--loaded-files
                  `((,(file-truename file) . ((fixture-function . [edebug-unknown
                                                                   testcover-1value
                                                                   edebug-ok-coverage

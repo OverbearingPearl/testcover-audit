@@ -36,6 +36,22 @@
 Provides j/n (down) and k/p (up) bindings in addition to the
 usual Emacs movement commands.")
 
+;;; Interactive row commands
+
+;; These commands are bound by the row keymaps below.  They live in
+;; this module (not the main entry point) because report-buffer
+;; navigation is an internal concern; users never invoke them with M-x.
+
+(defun testcover-audit-report--goto-file-stats-command ()
+  "Show the detailed report for the file on the current row."
+  (interactive)
+  (testcover-audit-report--goto-file-stats))
+
+(defun testcover-audit-report--goto-function-stats-command ()
+  "Show the detailed report for the function on the current row."
+  (interactive)
+  (testcover-audit-report--goto-function-stats))
+
 ;;; Rendering primitives
 
 (defun testcover-audit-report--face-for-percent (percent)
@@ -342,15 +358,15 @@ ENTRY is (SYMBOL . ((LINE . STATS-PLIST) ...))."
 
 (defvar testcover-audit-report--file-stats-keymap
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "RET") #'testcover-audit-report--goto-file-stats)
-    (define-key map [mouse-2] #'testcover-audit-report--goto-file-stats)
+    (define-key map (kbd "RET") #'testcover-audit-report--goto-file-stats-command)
+    (define-key map [mouse-2] #'testcover-audit-report--goto-file-stats-command)
     map)
   "Keymap for rows that jump to a file's detailed report.")
 
 (defvar testcover-audit-report--function-stats-keymap
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "RET") #'testcover-audit-report--goto-function-stats)
-    (define-key map [mouse-2] #'testcover-audit-report--goto-function-stats)
+    (define-key map (kbd "RET") #'testcover-audit-report--goto-function-stats-command)
+    (define-key map [mouse-2] #'testcover-audit-report--goto-function-stats-command)
     map)
   "Keymap for rows that jump to a function's detailed report.")
 
@@ -375,7 +391,6 @@ and `:help-echo'."
 
 (defun testcover-audit-report--goto-file-stats ()
   "Show the detailed report for the file on the current line."
-  (interactive)
   (let ((file (get-text-property (point) 'testcover-audit-report-file)))
     (if file
         (testcover-audit-report--show-all-stats file)
@@ -383,7 +398,6 @@ and `:help-echo'."
 
 (defun testcover-audit-report--goto-function-stats ()
   "Show the detailed report for the function on the current line."
-  (interactive)
   (let* ((file (get-text-property (point) 'testcover-audit-report-file))
          (function (get-text-property (point) 'testcover-audit-report-function)))
     (if file
@@ -461,7 +475,7 @@ summary table per function."
 
 (defun testcover-audit-report--batch-report ()
   "Show a detailed coverage report for all instrumented files."
-  (let* ((entries (cl-remove-if #'null testcover-audit--loaded-files))
+  (let* ((entries (cl-remove-if #'null testcover-audit-core--loaded-files))
          (collected (testcover-audit-report--collected-file-stats entries))
          (stats (testcover-audit-core--all-files-stats)))
     (if (null collected)

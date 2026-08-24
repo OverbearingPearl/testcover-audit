@@ -69,7 +69,7 @@
 
 (ert-deftest testcover-audit-core-test--all-files-stats ()
   "Test aggregate stats when collected files are present."
-  (let ((testcover-audit--loaded-files
+  (let ((testcover-audit-core--loaded-files
          '(("a.el" . ((a-function . [edebug-unknown testcover-1value
                                        edebug-ok-coverage edebug-ok-coverage])))
            ("b.el" . ((b-function . [edebug-unknown edebug-unknown
@@ -77,7 +77,7 @@
     (let ((stats (testcover-audit-core--all-files-stats)))
       (should (= (plist-get stats :total) 8))
       (should (= (plist-get stats :percent) 63))))
-  (let ((testcover-audit--loaded-files nil))
+  (let ((testcover-audit-core--loaded-files nil))
     (should (null (testcover-audit-core--all-files-stats)))))
 
 (provide 'testcover-audit-core-test)

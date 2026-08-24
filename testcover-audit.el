@@ -164,24 +164,6 @@ the current buffer in the mode line."
           (load-file el-path))))
     (message "testcover-audit modules reloaded.")))
 
-(defun testcover-audit-run-tests ()
-  "Run all testcover-audit test suites."
-  (interactive)
-  (require 'ert)
-  (ert-delete-all-tests)
-  ;; Reload all modules first to ensure latest code is used
-  (testcover-audit--reload-modules)
-  ;; Load test files automatically from the lisp directory
-  (let ((test-dir (expand-file-name "lisp" testcover-audit--package-root)))
-    (dolist (file (directory-files test-dir nil "testcover-audit-.*-test\\.el$"))
-      (let ((full-path (expand-file-name file test-dir)))
-        (when (file-exists-p full-path)
-          (load-file full-path)))))
-  ;; Use batch-compatible function to ensure output is visible in terminal
-  (if noninteractive
-      (ert-run-tests-batch-and-exit)
-    (ert t)))
-
 ;; The following commands are defined in the main module as the
 ;; single entry point for user-facing API.  Submodules keep the
 ;; non‑interactive implementations with internal double-dash names;

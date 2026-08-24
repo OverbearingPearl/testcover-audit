@@ -34,7 +34,7 @@
 
 (ert-deftest testcover-audit-report-test--batch-aggregates ()
   "Test batch reporting converts vectors to stats before aggregation."
-  (let ((testcover-audit--loaded-files
+  (let ((testcover-audit-core--loaded-files
          (list (cons (file-truename (expand-file-name "a.el"))
                      (list (cons 'a-function [edebug-unknown testcover-1value
                                               edebug-ok-coverage edebug-ok-coverage])))
@@ -64,7 +64,7 @@
   (let ((buf (generate-new-buffer "*tca-stats-file*")))
     (unwind-protect
         (with-current-buffer buf
-          (setq testcover-audit--loaded-files nil)
+          (setq testcover-audit-core--loaded-files nil)
           (should (null (testcover-audit-report--stats-for-file "no-such-file.el"))))
       (kill-buffer buf))))
 
@@ -74,7 +74,7 @@
          (buf (find-file-noselect file)))
     (unwind-protect
         (with-current-buffer buf
-          (let ((testcover-audit--loaded-files
+          (let ((testcover-audit-core--loaded-files
                  `((,(file-truename file) . ((fixture-function . [edebug-unknown
                                                                   testcover-1value
                                                                   edebug-ok-coverage
@@ -93,7 +93,7 @@
          (buf (find-file-noselect file)))
     (unwind-protect
         (with-current-buffer buf
-          (let ((testcover-audit--loaded-files
+          (let ((testcover-audit-core--loaded-files
                  `((,(file-truename file) . ((fixture-fn . [edebug-unknown
                                                             testcover-1value
                                                             edebug-ok-coverage
@@ -132,7 +132,7 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
-          (let ((testcover-audit--loaded-files nil))
+          (let ((testcover-audit-core--loaded-files nil))
             (cl-letf (((symbol-function 'display-buffer)
                        (lambda (&rest _) (setq display-buffer-called t))))
               (testcover-audit-report--show-function-stats)))
@@ -158,7 +158,7 @@
          (buf (find-file-noselect file)))
     (unwind-protect
         (with-current-buffer buf
-          (let ((testcover-audit--loaded-files
+          (let ((testcover-audit-core--loaded-files
                  (list (cons (file-truename file)
                              (list (cons 'good-fn [edebug-ok-coverage edebug-ok-coverage])
                                    (cons 'bad-fn [edebug-unknown edebug-unknown])))))
@@ -176,7 +176,7 @@
 
 (ert-deftest testcover-audit-report-test--batch-report-with-low-funcs ()
   "Test batch-report includes function-level breakdown for low coverage."
-  (let ((testcover-audit--loaded-files
+  (let ((testcover-audit-core--loaded-files
          (list (cons (file-truename (expand-file-name "a.el" temporary-file-directory))
                      (list (cons 'high-fn [edebug-ok-coverage edebug-ok-coverage])
                            (cons 'low-fn [edebug-unknown edebug-unknown]))))))
@@ -188,7 +188,7 @@
 
 (ert-deftest testcover-audit-report-test--batch-report-no-data-msg ()
   "Test batch-report shows message when no data is collected."
-  (let ((testcover-audit--loaded-files nil)
+  (let ((testcover-audit-core--loaded-files nil)
         (msg-captured nil))
     (cl-letf (((symbol-function 'message)
                (lambda (format-string &rest args)
@@ -212,7 +212,7 @@
           (put symbol 'edebug-coverage
                [edebug-ok-coverage edebug-ok-coverage edebug-ok-coverage])
           ;; Stale snapshot must not shadow live data.
-          (let ((testcover-audit--loaded-files
+          (let ((testcover-audit-core--loaded-files
                  (list (cons (file-truename file)
                              (list (cons symbol [edebug-unknown edebug-unknown]))))))
             (let ((stats (testcover-audit-report--stats-for-file file)))
@@ -240,7 +240,7 @@
           (put symbol 'edebug-coverage
                [edebug-unknown testcover-1value
                 edebug-ok-coverage edebug-ok-coverage])
-          (let ((testcover-audit--loaded-files nil))
+          (let ((testcover-audit-core--loaded-files nil))
             (cl-letf (((symbol-function 'display-buffer)
                        (lambda (&rest _) (setq display-buffer-called t))))
               (testcover-audit-report--show-all-stats)))
@@ -269,7 +269,7 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-unknown edebug-unknown])
-          (let ((testcover-audit--loaded-files nil))
+          (let ((testcover-audit-core--loaded-files nil))
             (cl-letf (((symbol-function 'display-buffer)
                        (lambda (&rest _) (setq display-buffer-called t))))
               (testcover-audit-report--show-function-stats)))
@@ -303,7 +303,7 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
-          (let ((testcover-audit--loaded-files nil))
+          (let ((testcover-audit-core--loaded-files nil))
             (cl-letf (((symbol-function 'display-buffer)
                        (lambda (&rest _) (setq display-buffer-called t))))
               (testcover-audit-report--show-all-stats)))
@@ -334,7 +334,7 @@
 (ert-deftest testcover-audit-report-test--batch-report-low-coverage-threshold ()
   "Test batch-report honors `testcover-audit-low-coverage-threshold'."
   (let* ((file (file-truename (expand-file-name "a.el" temporary-file-directory)))
-         (testcover-audit--loaded-files
+         (testcover-audit-core--loaded-files
           (list (cons file
                       (list (cons 'ok-fn [edebug-ok-coverage edebug-ok-coverage
                                           edebug-ok-coverage])
@@ -350,7 +350,7 @@
 
 (ert-deftest testcover-audit-report-test--navigation-map ()
   "Report buffers use the navigation keymap with j/k/n/p bindings."
-  (let ((testcover-audit--loaded-files
+  (let ((testcover-audit-core--loaded-files
          (list (cons (file-truename
                       (expand-file-name "a.el" temporary-file-directory))
                      (list (cons 'fn [edebug-unknown edebug-unknown])))))
@@ -374,7 +374,7 @@
          (display-buffer-called nil))
     (unwind-protect
         (with-current-buffer buf
-          (let ((testcover-audit--loaded-files
+          (let ((testcover-audit-core--loaded-files
                  (list (cons (file-truename file)
                              (list (cons 'fn [edebug-unknown edebug-unknown]))))))
             (cl-letf (((symbol-function 'display-buffer)
@@ -407,14 +407,14 @@
   "Report row keymaps activate their targets with the mouse."
   (should (eq (lookup-key testcover-audit-report--file-stats-keymap
                           [mouse-2])
-              #'testcover-audit-report--goto-file-stats))
+              #'testcover-audit-report--goto-file-stats-command))
   (should (eq (lookup-key testcover-audit-report--function-stats-keymap
                           [mouse-2])
-              #'testcover-audit-report--goto-function-stats)))
+              #'testcover-audit-report--goto-function-stats-command)))
 
 (ert-deftest testcover-audit-report-test--batch-report-row-navigation ()
   "Batch report binds file rows and function rows for navigation."
-  (let ((testcover-audit--loaded-files
+  (let ((testcover-audit-core--loaded-files
          (list (cons (file-truename (expand-file-name "a.el" temporary-file-directory))
                      (list (cons 'high-fn [edebug-ok-coverage edebug-ok-coverage])
                            (cons 'low-fn [edebug-unknown edebug-unknown]))))))

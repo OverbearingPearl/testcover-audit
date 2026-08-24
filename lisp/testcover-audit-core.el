@@ -15,7 +15,7 @@
 
 (require 'cl-lib)
 
-(defvar testcover-audit--loaded-files nil
+(defvar testcover-audit-core--loaded-files nil
   "Alist mapping file names to function coverage entries.")
 
 (defun testcover-audit-core--coverage-type (val)
@@ -62,7 +62,7 @@ and :percent."
 
 (defun testcover-audit-core--file-stats (file)
   "Return aggregate coverage statistics for FILE from collected data."
-  (let ((entry (assoc file testcover-audit--loaded-files)))
+  (let ((entry (assoc file testcover-audit-core--loaded-files)))
     (when entry
       (testcover-audit-core--aggregate
        (testcover-audit-core--file-function-stats entry)))))
@@ -71,15 +71,15 @@ and :percent."
   "Return aggregate coverage stats for all collected files.
 
 Return nil when no coverage data has been collected."
-  (when testcover-audit--loaded-files
+  (when testcover-audit-core--loaded-files
     (testcover-audit-core--aggregate
      (mapcar (lambda (entry)
                (testcover-audit-core--file-stats (car entry)))
-             testcover-audit--loaded-files))))
+             testcover-audit-core--loaded-files))))
 
 (defun testcover-audit-core--function-stats (file)
   "Return per-function coverage statistics for FILE."
-  (let ((entry (assoc file testcover-audit--loaded-files)))
+  (let ((entry (assoc file testcover-audit-core--loaded-files)))
     (when entry
       (testcover-audit-core--file-function-stats entry))))
 
