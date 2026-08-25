@@ -63,8 +63,8 @@ visiting buffer or no testcover-instrumented definitions."
              (testcover-audit-core--file-function-stats
               (cons key entries)))))))
 
-(defun testcover-audit-scan--definition-line-stats (symbol coverage)
-  "Return per-line stats for SYMBOL's COVERAGE vector.
+(defun testcover-audit-scan--definition-line-stats (symbol coverage baseline)
+  "Return per-line stats for SYMBOL's COVERAGE vector relative to BASELINE.
 
 Uses Edebug's stored position data to map each coverage index to a
 buffer position, then groups forms by source line.  Current buffer
@@ -79,11 +79,11 @@ SYMBOL has no usable position data."
                (marker-buffer def-mark)
                (vectorp points)
                (> (length points) 0))
-      (let* ((len (min (length coverage) (length points)))
+      (let* ((len (min (length coverage) (length points) (length baseline)))
              (lines (make-hash-table :test 'eql)))
         (dotimes (i len)
-          (let* ((type (testcover-audit-core--coverage-type
-                        (aref coverage i)))
+          (let* ((type (testcover-audit-core--delta-type
+                        (aref baseline i) (aref coverage i)))
                  (stats (gethash (line-number-at-pos
                                   (+ def-mark (aref points i)))
                                  lines
@@ -116,11 +116,15 @@ when FILE has no visiting buffer or no usable position data."
                (line-entries
                 (delq nil
                       (mapcar (lambda (entry)
-                                (let ((line-stats
-                                       (testcover-audit-scan--definition-line-stats
-                                        (car entry) (cdr entry))))
+                                (let* ((sym (car entry))
+                                       (baseline
+                                        (gethash sym testcover-audit-core--initial-vectors))
+                                       (line-stats
+                                        (and baseline
+                                             (testcover-audit-scan--definition-line-stats
+                                              sym (cdr entry) baseline))))
                                   (and line-stats
-                                       (cons (car entry) line-stats))))
+                                       (cons sym line-stats))))
                               entries))))
           (and line-entries line-entries))))))
 
@@ -184,7 +188,8 @@ are skipped; use `testcover-audit-core--loaded-files' to see what was found."
   (let ((files (testcover-audit-scan--source-files directory))
         (not-open 0)
         (dead-buffer 0)
-        (no-instrumented 0))
+        (no-instrumented 0)
+        (no-baseline 0))
     (setq testcover-audit-core--loaded-files nil)
     (dolist (file files)
       (let ((buf (find-buffer-visiting file)))
@@ -195,17 +200,26 @@ are skipped; use `testcover-audit-core--loaded-files' to see what was found."
           (cl-incf dead-buffer))
          (t
           (with-current-buffer buf
-            (let ((entries (testcover-audit-scan--buffer-covered-definitions buf)))
-              (if entries
-                  (push (cons file entries) testcover-audit-core--loaded-files)
-                (cl-incf no-instrumented))))))))
+            (let* ((entries (testcover-audit-scan--buffer-covered-definitions buf))
+                   (baselined
+                    (cl-remove-if-not
+                     (lambda (entry)
+                       (gethash (car entry) testcover-audit-core--initial-vectors))
+                     entries)))
+              (cond
+               (baselined
+                (push (cons file baselined) testcover-audit-core--loaded-files))
+               (entries
+                (cl-incf no-baseline))
+               (t
+                (cl-incf no-instrumented)))))))))
     (message "Scanned %d files, collected coverage from %d."
              (length files) (length testcover-audit-core--loaded-files))
     (when (< (length testcover-audit-core--loaded-files) (length files))
       (message
-       "Skipped %d files: %d not open, %d with dead buffers, %d without testcover-instrumented definitions."
+       "Skipped %d files: %d not open, %d with dead buffers, %d without testcover-instrumented definitions, %d without testcover-audit baseline."
        (- (length files) (length testcover-audit-core--loaded-files))
-       not-open dead-buffer no-instrumented))))
+       not-open dead-buffer no-instrumented no-baseline))))
 
 (defun testcover-audit-scan--dependency-order (files)
   "Order FILES by dependency (require) relationships.

@@ -9,6 +9,7 @@
 (require 'ert)
 (require 'json)
 (require 'testcover-audit-export)
+(require 'testcover-audit-util-test)
 
 (ert-deftest testcover-audit-export-test--collected-data ()
   "Test exports aggregate collected coverage vectors."
@@ -17,6 +18,8 @@
                                        edebug-ok-coverage edebug-ok-coverage])))
            ("b.el" . ((b-function . [edebug-unknown edebug-unknown
                                      testcover-1value testcover-1value]))))))
+    (testcover-audit-util-test--install-baselines
+     testcover-audit-core--loaded-files)
     (let ((tmp (make-temp-file "tca-json-collected" nil ".json")))
       (unwind-protect
           (progn
@@ -48,6 +51,8 @@
                                                   testcover-1value
                                                   edebug-ok-coverage
                                                   edebug-ok-coverage]))))))
+    (testcover-audit-util-test--install-baselines
+     testcover-audit-core--loaded-files)
     (unwind-protect
         (progn
           (testcover-audit-export--export-org tmp)
@@ -64,6 +69,8 @@
             . ((fixture-function
                 . [edebug-unknown testcover-1value
                    edebug-ok-coverage edebug-ok-coverage]))))))
+    (testcover-audit-util-test--install-baselines
+     testcover-audit-core--loaded-files)
     (unwind-protect
         (progn
           (testcover-audit-export--export-json tmp)
@@ -84,6 +91,8 @@
          '(("a.el" . ((fn . [edebug-ok-coverage edebug-ok-coverage])))))
         (testcover-audit-ci-threshold 80)
         (kill-emacs-called nil))
+    (testcover-audit-util-test--install-baselines
+     testcover-audit-core--loaded-files)
     (cl-letf (((symbol-function 'kill-emacs)
                (lambda (&optional code) (setq kill-emacs-called code))))
       (testcover-audit-export--ci-check)
@@ -95,6 +104,8 @@
          '(("a.el" . ((fn . [edebug-unknown edebug-unknown])))))
         (testcover-audit-ci-threshold 80)
         (kill-emacs-called nil))
+    (testcover-audit-util-test--install-baselines
+     testcover-audit-core--loaded-files)
     (cl-letf (((symbol-function 'kill-emacs)
                (lambda (&optional code) (setq kill-emacs-called code))))
       (let ((noninteractive t))

@@ -10,6 +10,7 @@
 (require 'seq)
 (require 'edebug)
 (require 'testcover-audit-scan)
+(require 'testcover-audit-util-test)
 
 (ert-deftest testcover-audit-scan-test--dependency-order ()
   "Test dependency ordering of files."
@@ -36,6 +37,9 @@
             (put symbol 'edebug-coverage
                  [edebug-unknown testcover-1value
                   edebug-ok-coverage edebug-ok-coverage])
+            (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+            (testcover-audit-util-test--install-symbol-baseline
+             symbol (get symbol 'edebug-coverage))
             (let ((testcover-audit-exclude-files nil))
               (testcover-audit-scan--scan-directory dir))
             (let ((entry (assoc (file-truename file) testcover-audit-core--loaded-files)))
@@ -110,11 +114,15 @@
             (put symbol 'edebug-behavior 'testcover)
             (put symbol 'edebug-coverage
                  [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
+            (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+            (testcover-audit-util-test--install-symbol-baseline
+             symbol (get symbol 'edebug-coverage))
             (let ((line-stats (testcover-audit-scan--definition-line-stats
                                symbol
                                [edebug-unknown
                                 edebug-ok-coverage
-                                edebug-ok-coverage])))
+                                edebug-ok-coverage]
+                               (gethash symbol testcover-audit-core--initial-vectors))))
               (should (equal (mapcar #'car line-stats) '(1 2 3)))
               (should (= (plist-get (cdr (nth 0 line-stats)) :uncovered) 1))
               (should (= (plist-get (cdr (nth 1 line-stats)) :covered) 1))
@@ -128,12 +136,15 @@
 (ert-deftest testcover-audit-scan-test--coverage-vector-p ()
   (should
    (testcover-audit-scan--coverage-vector-p
-    [edebug-unknown testcover-1value edebug-ok-coverage noreturn]))
+    (vector 'edebug-unknown
+            testcover-audit-util-test--1value
+            'edebug-ok-coverage
+            'noreturn)))
   (should (testcover-audit-scan--coverage-vector-p [0 1 2 3]))
   (should
    (testcover-audit-scan--coverage-vector-p
-    [edebug-unknown "one-result" fixture-symbol
-     (noreturn . 12) nil]))
+    (vector 'edebug-unknown "one-result" 'fixture-symbol
+            '(noreturn . 12) nil)))
   (should-not (testcover-audit-scan--coverage-vector-p [])))
 
 (ert-deftest testcover-audit-scan-test--ignores-non-testcover-edebug ()
@@ -185,6 +196,9 @@
           (put symbol 'edebug-coverage
                [edebug-unknown testcover-1value
                 edebug-ok-coverage edebug-ok-coverage])
+          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+          (testcover-audit-util-test--install-symbol-baseline
+           symbol (get symbol 'edebug-coverage))
           (let ((rows (testcover-audit-scan--buffer-function-stats file)))
             (should (= (length rows) 1))
             (should (string= (plist-get (car rows) :name)
@@ -218,6 +232,9 @@
           (put symbol 'edebug-coverage
                [edebug-unknown testcover-1value
                 edebug-ok-coverage edebug-ok-coverage])
+          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+          (testcover-audit-util-test--install-symbol-baseline
+           symbol (get symbol 'edebug-coverage))
           (let ((stats (testcover-audit-scan--buffer-stats file)))
             (should stats)
             (should (= (plist-get stats :total) 4))

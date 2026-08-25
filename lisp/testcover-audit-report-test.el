@@ -10,6 +10,7 @@
 (require 'cl-lib)
 (require 'edebug)
 (require 'testcover-audit-report)
+(require 'testcover-audit-util-test)
 
 (ert-deftest testcover-audit-report-test--format-table ()
   "Test table formatting with sample rows."
@@ -41,6 +42,8 @@
                (cons (file-truename (expand-file-name "b.el"))
                      (list (cons 'b-function [edebug-unknown edebug-unknown
                                               testcover-1value testcover-1value]))))))
+    (testcover-audit-util-test--install-baselines
+     testcover-audit-core--loaded-files)
     (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
       (testcover-audit-report--batch-report))
     (with-current-buffer "*Testcover Batch Report*"
@@ -80,6 +83,8 @@
                                                                   edebug-ok-coverage
                                                                   edebug-ok-coverage])))))
                 (messages nil))
+            (testcover-audit-util-test--install-baselines
+             testcover-audit-core--loaded-files)
             (cl-letf (((symbol-function 'message)
                        (lambda (format-string &rest args)
                          (push (apply #'format format-string args) messages))))
@@ -99,6 +104,8 @@
                                                             edebug-ok-coverage
                                                             edebug-ok-coverage])))))
                 (_display-buffer-called nil))
+            (testcover-audit-util-test--install-baselines
+             testcover-audit-core--loaded-files)
             (testcover-audit-report--show-all-stats)
             (should (eq (current-buffer)
                         (get-buffer "*Testcover Audit Report*")))
@@ -131,6 +138,9 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
+          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+          (testcover-audit-util-test--install-symbol-baseline
+           symbol (get symbol 'edebug-coverage))
           (let ((testcover-audit-core--loaded-files nil))
             (testcover-audit-report--show-function-stats))
           (should (eq (current-buffer)
@@ -161,6 +171,8 @@
                              (list (cons 'good-fn [edebug-ok-coverage edebug-ok-coverage])
                                    (cons 'bad-fn [edebug-unknown edebug-unknown])))))
                 (_display-buffer-called nil))
+            (testcover-audit-util-test--install-baselines
+             testcover-audit-core--loaded-files)
             (testcover-audit-report--show-function-stats)
             (should (eq (current-buffer)
                         (get-buffer "*Testcover Function Report*")))
@@ -177,6 +189,8 @@
          (list (cons (file-truename (expand-file-name "a.el" temporary-file-directory))
                      (list (cons 'high-fn [edebug-ok-coverage edebug-ok-coverage])
                            (cons 'low-fn [edebug-unknown edebug-unknown]))))))
+    (testcover-audit-util-test--install-baselines
+     testcover-audit-core--loaded-files)
     (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
       (testcover-audit-report--batch-report))
     (with-current-buffer "*Testcover Batch Report*"
@@ -208,6 +222,9 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-ok-coverage edebug-ok-coverage edebug-ok-coverage])
+          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+          (testcover-audit-util-test--install-symbol-baseline
+           symbol (get symbol 'edebug-coverage))
           ;; Stale snapshot must not shadow live data.
           (let ((testcover-audit-core--loaded-files
                  (list (cons (file-truename file)
@@ -237,6 +254,9 @@
           (put symbol 'edebug-coverage
                [edebug-unknown testcover-1value
                 edebug-ok-coverage edebug-ok-coverage])
+          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+          (testcover-audit-util-test--install-symbol-baseline
+           symbol (get symbol 'edebug-coverage))
           (let ((testcover-audit-core--loaded-files nil))
             (testcover-audit-report--show-all-stats))
           (should (eq (current-buffer)
@@ -265,6 +285,9 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-unknown edebug-unknown])
+          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+          (testcover-audit-util-test--install-symbol-baseline
+           symbol (get symbol 'edebug-coverage))
           (let ((testcover-audit-core--loaded-files nil))
             (testcover-audit-report--show-function-stats))
           (should (eq (current-buffer)
@@ -298,6 +321,9 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
+          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+          (testcover-audit-util-test--install-symbol-baseline
+           symbol (get symbol 'edebug-coverage))
           (let ((testcover-audit-core--loaded-files nil))
             (testcover-audit-report--show-all-stats))
           (should (eq (current-buffer)
@@ -335,6 +361,8 @@
                             (cons 'partial-fn [edebug-unknown edebug-ok-coverage
                                                edebug-ok-coverage])))))
          (testcover-audit-low-coverage-threshold 90))
+    (testcover-audit-util-test--install-baselines
+     testcover-audit-core--loaded-files)
     (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
       (testcover-audit-report--batch-report))
     (with-current-buffer "*Testcover Batch Report*"
@@ -349,6 +377,8 @@
                       (expand-file-name "a.el" temporary-file-directory))
                      (list (cons 'fn [edebug-unknown edebug-unknown])))))
         (_display-buffer-called nil))
+    (testcover-audit-util-test--install-baselines
+     testcover-audit-core--loaded-files)
     (testcover-audit-report--batch-report)
     (should (eq (current-buffer)
                 (get-buffer "*Testcover Batch Report*")))
@@ -370,6 +400,8 @@
           (let ((testcover-audit-core--loaded-files
                  (list (cons (file-truename file)
                              (list (cons 'fn [edebug-unknown edebug-unknown]))))))
+            (testcover-audit-util-test--install-baselines
+             testcover-audit-core--loaded-files)
             (testcover-audit-report--show-function-stats))
           (should (eq (current-buffer)
                       (get-buffer "*Testcover Function Report*")))
@@ -410,6 +442,8 @@
          (list (cons (file-truename (expand-file-name "a.el" temporary-file-directory))
                      (list (cons 'high-fn [edebug-ok-coverage edebug-ok-coverage])
                            (cons 'low-fn [edebug-unknown edebug-unknown]))))))
+    (testcover-audit-util-test--install-baselines
+     testcover-audit-core--loaded-files)
     (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
       (testcover-audit-report--batch-report))
     (with-current-buffer "*Testcover Batch Report*"
@@ -480,6 +514,9 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-unknown edebug-unknown])
+          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+          (testcover-audit-util-test--install-symbol-baseline
+           symbol (get symbol 'edebug-coverage))
           (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
             (testcover-audit-report--show-function-stats file "tca-nav-target"))
           (with-current-buffer "*Testcover Function Report*"

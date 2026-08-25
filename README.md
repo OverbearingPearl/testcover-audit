@@ -185,6 +185,11 @@ After each ERT run, the configured directory is scanned first and a coverage rep
 - `testcover-audit-scan-directory` collects a snapshot from open, instrumented buffers into `testcover-audit-core--loaded-files` for batch/export/CI commands. It never calls `testcover-start` and never loads files.
 - Files that are not open, have dead buffers, or contain no testcover-instrumented definitions are skipped. When any files are skipped, the scan message reports the reason counts.
 - Test files are excluded by default; set `testcover-audit-test-file-regexp` to `nil` to include them.
+- Coverage is reported as the delta from the baseline captured when
+  `testcover-start`/`testcover-this-defun` runs under testcover-audit.
+  Definitions instrumented before testcover-audit was loaded have no
+  baseline and are excluded from reports; re-instrument those files after
+  loading the package.
 
 ## Notes
 

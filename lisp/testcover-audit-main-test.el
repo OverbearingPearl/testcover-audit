@@ -10,6 +10,7 @@
 (require 'seq)
 (add-to-list 'load-path (expand-file-name ".." (file-name-directory (or load-file-name buffer-file-name))))
 (require 'testcover-audit)
+(require 'testcover-audit-util-test)
 
 (ert-deftest testcover-audit-main-test--mode ()
   "Test that minor mode toggles correctly."
@@ -33,6 +34,8 @@
                                                                   testcover-1value
                                                                   edebug-ok-coverage
                                                                   edebug-ok-coverage]))))))
+            (testcover-audit-util-test--install-baselines
+             testcover-audit-core--loaded-files)
             (testcover-audit--refresh-mode-line))
           (should (string-match-p "PCTcov" (prin1-to-string mode-line-format)))
           (should (string-match-p "75%" (prin1-to-string mode-line-format))))

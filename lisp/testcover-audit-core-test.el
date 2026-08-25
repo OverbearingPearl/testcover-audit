@@ -8,24 +8,45 @@
 
 (require 'ert)
 (require 'testcover-audit-core)
+(require 'testcover-audit-util-test)
 
 (ert-deftest testcover-audit-core-test--collect-stats ()
   "Test parsing of an edebug-coverage vector."
-  (let ((stats
-         (testcover-audit-core--collect-stats
-          [edebug-unknown testcover-1value
-           edebug-ok-coverage edebug-ok-coverage])))
+  (let* ((current (vector 'edebug-unknown
+                          (cons testcover-audit-util-test--1value 1)
+                          'edebug-ok-coverage 'edebug-ok-coverage))
+         (baseline (testcover-audit-util-test--unknown-baseline current))
+         (stats (testcover-audit-core--collect-stats current baseline)))
     (should (= (plist-get stats :total) 4))
     (should (= (plist-get stats :covered) 2))
     (should (= (plist-get stats :onevalue) 1))
     (should (= (plist-get stats :uncovered) 1))
     (should (= (plist-get stats :percent) 75))))
 
+(ert-deftest testcover-audit-core-test--static-before-slots-ignored ()
+  "Baseline `edebug-ok-coverage' slots are before markers, not coverage."
+  (let ((baseline [edebug-ok-coverage edebug-unknown
+                   edebug-ok-coverage edebug-unknown])
+        (current [edebug-ok-coverage edebug-unknown
+                  edebug-ok-coverage edebug-unknown]))
+    (let ((stats (testcover-audit-core--collect-stats current baseline)))
+      (should (= (plist-get stats :total) 2))
+      (should (= (plist-get stats :uncovered) 2))
+      (should (= (plist-get stats :covered) 0))
+      (should (= (plist-get stats :percent) 0)))))
+
+(ert-deftest testcover-audit-core-test--missing-baseline-fails ()
+  "Collect-stats fails loud without a baseline."
+  (should-error (testcover-audit-core--collect-stats [edebug-unknown] nil)
+                :type 'user-error))
+
 (ert-deftest testcover-audit-core-test--collect-stats-ignores-noreturn ()
   "Test that non-returning forms are excluded from coverage totals."
-  (let ((stats
-         (testcover-audit-core--collect-stats
-          [edebug-ok-coverage (noreturn . 1) edebug-unknown])))
+  (let* ((baseline [edebug-unknown (noreturn . 1) edebug-unknown])
+         (stats
+          (testcover-audit-core--collect-stats
+           [edebug-ok-coverage (noreturn . 1) edebug-unknown]
+           baseline)))
     (should (= (plist-get stats :total) 2))
     (should (= (plist-get stats :covered) 1))
     (should (= (plist-get stats :uncovered) 1))
@@ -34,14 +55,18 @@
 
 (ert-deftest testcover-audit-core-test--collect-stats-observed-values ()
   "Test that observed testcover result values count as onevalue."
-  (let ((stats
-         (testcover-audit-core--collect-stats
-          [edebug-unknown
-           edebug-ok-coverage
-           "single-result"
-           fixture-symbol
-           nil
-           (noreturn . 17)])))
+  (let* ((baseline [edebug-unknown edebug-unknown
+                    edebug-unknown edebug-unknown
+                    edebug-unknown (noreturn . 17)])
+         (stats
+          (testcover-audit-core--collect-stats
+           [edebug-unknown
+            edebug-ok-coverage
+            "single-result"
+            fixture-symbol
+            nil
+            (noreturn . 17)]
+           baseline)))
     (should (= (plist-get stats :total) 5))
     (should (= (plist-get stats :covered) 1))
     (should (= (plist-get stats :onevalue) 3))
@@ -70,10 +95,19 @@
 (ert-deftest testcover-audit-core-test--all-files-stats ()
   "Test aggregate stats when collected files are present."
   (let ((testcover-audit-core--loaded-files
-         '(("a.el" . ((a-function . [edebug-unknown testcover-1value
-                                       edebug-ok-coverage edebug-ok-coverage])))
-           ("b.el" . ((b-function . [edebug-unknown edebug-unknown
-                                     testcover-1value testcover-1value]))))))
+         (list (cons "a.el"
+                     (list (cons 'a-function
+                                 (vector 'edebug-unknown
+                                         testcover-audit-util-test--1value
+                                         'edebug-ok-coverage
+                                         'edebug-ok-coverage))))
+               (cons "b.el"
+                     (list (cons 'b-function
+                                 (vector 'edebug-unknown 'edebug-unknown
+                                         testcover-audit-util-test--1value
+                                         testcover-audit-util-test--1value)))))))
+    (testcover-audit-util-test--install-baselines
+     testcover-audit-core--loaded-files)
     (let ((stats (testcover-audit-core--all-files-stats)))
       (should (= (plist-get stats :total) 8))
       (should (= (plist-get stats :percent) 63))))

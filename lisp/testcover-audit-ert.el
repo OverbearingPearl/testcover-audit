@@ -18,8 +18,9 @@
 (require 'testcover-audit-report)
 (require 'testcover-audit-scan)
 
-(defun testcover-audit-ert--after-run ()
-  "Function called after an ERT test run batch completes."
+(defun testcover-audit-ert--after-run (&rest _)
+  "Function called after an ERT test run batch completes.
+The arguments are those passed to `ert-run-tests-batch' and are ignored."
   (run-hooks 'testcover-audit-ert-after-run-hook)
   (when testcover-audit-auto-show-report
     (when testcover-audit-ert-scan-directory
