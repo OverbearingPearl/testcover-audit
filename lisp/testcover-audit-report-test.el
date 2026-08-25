@@ -12,6 +12,11 @@
 (require 'testcover-audit-report)
 (require 'testcover-audit-util-test)
 
+(defun testcover-audit-report-test--kill-report-buffer (name)
+  "Kill report buffer NAME if it is live."
+  (when (buffer-live-p (get-buffer name))
+    (kill-buffer name)))
+
 (ert-deftest testcover-audit-report-test--format-table ()
   "Test table formatting with sample rows."
   (let ((table (testcover-audit-report--format-table '(("a" 1) ("bb" 22)))))
@@ -44,10 +49,14 @@
                                               testcover-1value testcover-1value]))))))
     (testcover-audit-util-test--install-baselines
      testcover-audit-core--loaded-files)
-    (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
-      (testcover-audit-report--batch-report))
-    (with-current-buffer "*Testcover Batch Report*"
-      (should (string-match-p "63" (buffer-string))))))
+    (unwind-protect
+        (progn
+          (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
+            (testcover-audit-report--batch-report))
+          (with-current-buffer "*Testcover Batch Report*"
+            (should (string-match-p "63" (buffer-string)))))
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Batch Report*"))))
 
 (ert-deftest testcover-audit-report-test--show-stats-no-data ()
   "Message when no collected data exists."
@@ -114,6 +123,8 @@
               (should (string-match-p "Function-level breakdown" (buffer-string)))
               (should (string-match-p "75" (buffer-string))))))
       (kill-buffer buf)
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Audit Report*")
       (delete-file file))))
 
 (ert-deftest testcover-audit-report-test--show-function-stats-line-level ()
@@ -158,6 +169,8 @@
         (with-current-buffer buf
           (set-buffer-modified-p nil))
         (kill-buffer buf))
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Function Report*")
       (delete-file file))))
 
 (ert-deftest testcover-audit-report-test--show-function-stats-mixed ()
@@ -181,6 +194,8 @@
               (should (string-match-p "bad-fn" (buffer-string)))
               (should (string-match-p "0%" (buffer-string))))))
       (kill-buffer buf)
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Function Report*")
       (delete-file file))))
 
 (ert-deftest testcover-audit-report-test--batch-report-with-low-funcs ()
@@ -191,11 +206,15 @@
                            (cons 'low-fn [edebug-unknown edebug-unknown]))))))
     (testcover-audit-util-test--install-baselines
      testcover-audit-core--loaded-files)
-    (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
-      (testcover-audit-report--batch-report))
-    (with-current-buffer "*Testcover Batch Report*"
-      (should (string-match-p "Function-level breakdown" (buffer-string)))
-      (should (string-match-p "low-fn" (buffer-string))))))
+    (unwind-protect
+        (progn
+          (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
+            (testcover-audit-report--batch-report))
+          (with-current-buffer "*Testcover Batch Report*"
+            (should (string-match-p "Function-level breakdown" (buffer-string)))
+            (should (string-match-p "low-fn" (buffer-string)))))
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Batch Report*"))))
 
 (ert-deftest testcover-audit-report-test--batch-report-no-data-msg ()
   "Test batch-report shows message when no data is collected."
@@ -235,6 +254,8 @@
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
       (when (buffer-live-p buf) (kill-buffer buf))
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Audit Report*")
       (delete-file file))))
 
 (ert-deftest testcover-audit-report-test--show-all-stats-live ()
@@ -267,6 +288,8 @@
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
       (when (buffer-live-p buf) (kill-buffer buf))
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Function Report*")
       (delete-file file))))
 
 (ert-deftest testcover-audit-report-test--show-function-stats-live ()
@@ -298,6 +321,8 @@
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
       (when (buffer-live-p buf) (kill-buffer buf))
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Function Report*")
       (delete-file file))))
 
 (ert-deftest testcover-audit-report-test--show-all-stats-no-line-level ()
@@ -338,6 +363,8 @@
         (with-current-buffer buf
           (set-buffer-modified-p nil))
         (kill-buffer buf))
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Audit Report*")
       (delete-file file))))
 
 (ert-deftest testcover-audit-report-test--format-list ()
@@ -363,12 +390,16 @@
          (testcover-audit-low-coverage-threshold 90))
     (testcover-audit-util-test--install-baselines
      testcover-audit-core--loaded-files)
-    (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
-      (testcover-audit-report--batch-report))
-    (with-current-buffer "*Testcover Batch Report*"
-      (should (string-match-p "partial-fn" (buffer-string)))
-      (should-not (string-match-p "ok-fn" (buffer-string)))
-      (should (string-match-p "Uncovered" (buffer-string))))))
+    (unwind-protect
+        (progn
+          (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
+            (testcover-audit-report--batch-report))
+          (with-current-buffer "*Testcover Batch Report*"
+            (should (string-match-p "partial-fn" (buffer-string)))
+            (should-not (string-match-p "ok-fn" (buffer-string)))
+            (should (string-match-p "Uncovered" (buffer-string)))))
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Batch Report*"))))
 
 (ert-deftest testcover-audit-report-test--navigation-map ()
   "Report buffers use the navigation keymap with j/k/n/p bindings."
@@ -379,16 +410,20 @@
         (_display-buffer-called nil))
     (testcover-audit-util-test--install-baselines
      testcover-audit-core--loaded-files)
-    (testcover-audit-report--batch-report)
-    (should (eq (current-buffer)
-                (get-buffer "*Testcover Batch Report*")))
-    (with-current-buffer "*Testcover Batch Report*"
-      (should (eq (current-local-map)
-                  testcover-audit-report--navigation-map))
-      (should (eq (lookup-key (current-local-map) (kbd "j")) #'next-line))
-      (should (eq (lookup-key (current-local-map) (kbd "k")) #'previous-line))
-      (should (eq (lookup-key (current-local-map) (kbd "n")) #'next-line))
-      (should (eq (lookup-key (current-local-map) (kbd "p")) #'previous-line)))))
+    (unwind-protect
+        (progn
+          (testcover-audit-report--batch-report)
+          (should (eq (current-buffer)
+                      (get-buffer "*Testcover Batch Report*")))
+          (with-current-buffer "*Testcover Batch Report*"
+            (should (eq (current-local-map)
+                        testcover-audit-report--navigation-map))
+            (should (eq (lookup-key (current-local-map) (kbd "j")) #'next-line))
+            (should (eq (lookup-key (current-local-map) (kbd "k")) #'previous-line))
+            (should (eq (lookup-key (current-local-map) (kbd "n")) #'next-line))
+            (should (eq (lookup-key (current-local-map) (kbd "p")) #'previous-line)))))
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Batch Report*")))
 
 (ert-deftest testcover-audit-report-test--function-report-navigation-map ()
   "Function report buffer uses the navigation keymap."
@@ -409,6 +444,8 @@
             (should (eq (current-local-map)
                         testcover-audit-report--navigation-map))))
       (kill-buffer buf)
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Function Report*")
       (delete-file file))))
 
 (ert-deftest testcover-audit-report-test--row-navigation-properties ()
@@ -444,29 +481,33 @@
                            (cons 'low-fn [edebug-unknown edebug-unknown]))))))
     (testcover-audit-util-test--install-baselines
      testcover-audit-core--loaded-files)
-    (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
-      (testcover-audit-report--batch-report))
-    (with-current-buffer "*Testcover Batch Report*"
-      ;; File row: locate the first row carrying the file navigation property.
-      (goto-char (point-min))
-      (let ((match (text-property-search-forward 'testcover-audit-report-file)))
-        (should match)
-        (goto-char (prop-match-beginning match))
-        (should (eq (get-text-property (point) 'keymap)
-                    testcover-audit-report--file-stats-keymap))
-        (should (string= (get-text-property (point) 'testcover-audit-report-file)
-                         (file-truename
-                          (expand-file-name "a.el" temporary-file-directory)))))
-      ;; Function row: locate the first low-function row carrying the
-      ;; function navigation property.
-      (goto-char (point-min))
-      (let ((match (text-property-search-forward 'testcover-audit-report-function)))
-        (should match)
-        (goto-char (prop-match-beginning match))
-        (should (eq (get-text-property (point) 'keymap)
-                    testcover-audit-report--function-stats-keymap))
-        (should (string= (get-text-property (point) 'testcover-audit-report-function)
-                         "low-fn"))))))
+    (unwind-protect
+        (progn
+          (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
+            (testcover-audit-report--batch-report))
+          (with-current-buffer "*Testcover Batch Report*"
+            ;; File row: locate the first row carrying the file navigation property.
+            (goto-char (point-min))
+            (let ((match (text-property-search-forward 'testcover-audit-report-file)))
+              (should match)
+              (goto-char (prop-match-beginning match))
+              (should (eq (get-text-property (point) 'keymap)
+                          testcover-audit-report--file-stats-keymap))
+              (should (string= (get-text-property (point) 'testcover-audit-report-file)
+                               (file-truename
+                                (expand-file-name "a.el" temporary-file-directory)))))
+            ;; Function row: locate the first low-function row carrying the
+            ;; function navigation property.
+            (goto-char (point-min))
+            (let ((match (text-property-search-forward 'testcover-audit-report-function)))
+              (should match)
+              (goto-char (prop-match-beginning match))
+              (should (eq (get-text-property (point) 'keymap)
+                          testcover-audit-report--function-stats-keymap))
+              (should (string= (get-text-property (point) 'testcover-audit-report-function)
+                               "low-fn"))))))
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Batch Report*")))
 
 (ert-deftest testcover-audit-report-test--goto-file-stats ()
   "Goto-file-stats calls show-all-stats with the associated file."
@@ -524,6 +565,8 @@
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
       (when (buffer-live-p buf) (kill-buffer buf))
+      (testcover-audit-report-test--kill-report-buffer
+       "*Testcover Function Report*")
       (delete-file file))))
 
 (ert-deftest testcover-audit-report-test--project-report ()
