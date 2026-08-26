@@ -221,12 +221,5 @@ are skipped; use `testcover-audit-core--loaded-files' to see what was found."
        (- (length files) (length testcover-audit-core--loaded-files))
        not-open dead-buffer no-instrumented no-baseline))))
 
-(defun testcover-audit-scan--dependency-order (files)
-  "Order FILES by dependency (require) relationships.
-
-For the current implementation a simple alphabetical sort is used,
-which is sufficient for most small projects."
-  (sort files #'string<))
-
 (provide 'testcover-audit-scan)
 ;;; testcover-audit-scan.el ends here

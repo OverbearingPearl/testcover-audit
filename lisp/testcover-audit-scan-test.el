@@ -12,12 +12,6 @@
 (require 'testcover-audit-scan)
 (require 'testcover-audit-util-test)
 
-(ert-deftest testcover-audit-scan-test--dependency-order ()
-  "Test dependency ordering of files."
-  (let ((files '("b.el" "a.el")))
-    (should (equal (testcover-audit-scan--dependency-order files)
-                   '("a.el" "b.el")))))
-
 (ert-deftest testcover-audit-scan-test--collects-coverage ()
   "Scan-directory collects vectors from testcover-instrumented definitions."
   (let* ((dir (make-temp-file "tca-scan-collect" t))

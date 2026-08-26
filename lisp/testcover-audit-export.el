@@ -17,15 +17,14 @@
 (require 'testcover-audit-core)
 (require 'testcover-audit-scan)
 
-(defun testcover-audit-export--collected-stats ()
-  "Return aggregate coverage stats for the CI/export commands.
-Return nil when no coverage data is available."
-  (testcover-audit-core--all-files-stats))
+(defun testcover-audit-export--require-stats ()
+  "Return aggregate coverage stats or signal `user-error'."
+  (or (testcover-audit-core--all-files-stats)
+      (user-error "No coverage data available")))
 
 (defun testcover-audit-export--export-org (file)
   "Export current or batch report to Org file FILE."
-  (let ((stats (or (testcover-audit-export--collected-stats)
-                   (user-error "No coverage data available"))))
+  (let ((stats (testcover-audit-export--require-stats)))
     (with-temp-file file
       (insert (format "#+TITLE: testcover-audit Coverage Report\n\n"))
       (insert (format "* Total coverage: %d%%\n" (plist-get stats :percent)))
@@ -38,8 +37,7 @@ Return nil when no coverage data is available."
 (defun testcover-audit-export--export-json (file)
   "Export machine-readable report to JSON file FILE."
   (require 'json)
-  (let ((stats (or (testcover-audit-export--collected-stats)
-                   (user-error "No coverage data available"))))
+  (let ((stats (testcover-audit-export--require-stats)))
     (with-temp-file file
       (insert (format "{\"total\":%d,\"covered\":%d,\"onevalue\":%d,\"uncovered\":%d,\"percent\":%d}"
                       (plist-get stats :total)
@@ -47,14 +45,13 @@ Return nil when no coverage data is available."
                       (plist-get stats :onevalue)
                       (plist-get stats :uncovered)
                       (plist-get stats :percent))))
-  (message "Wrote JSON report to %s" file)))
+    (message "Wrote JSON report to %s" file)))
 
 (defun testcover-audit-export--ci-check ()
   "Exit with non-zero status if coverage is below threshold.
 
 Intended for use in CI pipelines."
-  (let* ((stats (or (testcover-audit-export--collected-stats)
-                    (user-error "No coverage data available")))
+  (let* ((stats (testcover-audit-export--require-stats))
          (percent (plist-get stats :percent))
          (threshold testcover-audit-ci-threshold))
     (if (< percent threshold)

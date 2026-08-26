@@ -111,9 +111,13 @@ Functions without a captured baseline are omitted."
                                   current baseline)))))
                 (cdr file-entry))))
 
+(defun testcover-audit-core--entry-for-file (file)
+  "Return FILE's entry in `testcover-audit-core--loaded-files'."
+  (assoc file testcover-audit-core--loaded-files))
+
 (defun testcover-audit-core--file-stats (file)
   "Return aggregate coverage statistics for FILE from collected data."
-  (let ((entry (assoc file testcover-audit-core--loaded-files)))
+  (let ((entry (testcover-audit-core--entry-for-file file)))
     (when entry
       (let ((fn-stats (testcover-audit-core--file-function-stats entry)))
         (and fn-stats (testcover-audit-core--aggregate fn-stats))))))
@@ -131,7 +135,7 @@ Return nil when no coverage data has been collected."
 
 (defun testcover-audit-core--function-stats (file)
   "Return per-function coverage statistics for FILE."
-  (let ((entry (assoc file testcover-audit-core--loaded-files)))
+  (let ((entry (testcover-audit-core--entry-for-file file)))
     (when entry
       (testcover-audit-core--file-function-stats entry))))
 

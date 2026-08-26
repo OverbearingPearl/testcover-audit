@@ -17,19 +17,6 @@
   (when (buffer-live-p (get-buffer name))
     (kill-buffer name)))
 
-(ert-deftest testcover-audit-report-test--format-table ()
-  "Test table formatting with sample rows."
-  (let ((table (testcover-audit-report--format-table '(("a" 1) ("bb" 22)))))
-    (should (string-match-p "a" table))
-    (should (string-match-p "bb" table))
-    (should (string-match-p "22" table)))
-  (let ((table (testcover-audit-report--format-table
-                '(("h1" "h2" "h3") ("a" 1 2) ("bbb" 33 44)))))
-    (should (string-match-p "h1" table))
-    (should (string-match-p "h3" table))
-    (should (string-match-p "33" table))
-    (should (string-match-p "44" table))))
-
 (ert-deftest testcover-audit-report-test--face-for-percent ()
   "Test color threshold face selection."
   (let ((testcover-audit-green-threshold 80)

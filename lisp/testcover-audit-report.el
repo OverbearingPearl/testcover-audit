@@ -69,63 +69,31 @@ Strings are used verbatim; all other values use `prin1-to-string'."
       value
     (prin1-to-string value)))
 
-(defun testcover-audit-report--format-table (rows)
-  "Format ROWS as an aligned table string.
-
-Each row is a list of cells.  Strings are inserted verbatim; all other
-values are converted with `prin1-to-string'."
-  (if (null rows)
-      ""
-    (let* ((num-cols (length (car rows)))
-           (widths (make-vector num-cols 0)))
-      (dolist (row rows)
-        (dotimes (i num-cols)
-          (let ((cell (testcover-audit-report--format-cell (nth i row))))
-            (setf (aref widths i) (max (aref widths i) (length cell))))))
-      (mapconcat
-       (lambda (row)
-         (mapconcat
-          #'identity
-          (cl-mapcar
-           (lambda (width cell)
-             (format (format "%%-%ds" width)
-                     (testcover-audit-report--format-cell cell)))
-           (append widths nil)
-           row)
-          "  "))
-       rows
-       "\n"))))
-
-(defun testcover-audit-report--cell-string (cell type)
-  "Return CELL as a string according to TYPE.
-TYPE is `text', `number' or `percent'."
+(defun testcover-audit-report--format-spec (value type &optional face)
+  "Return VALUE formatted as a string according to TYPE.
+TYPE is `text', `number' or `percent'.  FACE is used for `text'
+cells.  Percent cells are propertized with the threshold face."
   (pcase type
-    ('number (format "%d" (or cell 0)))
-    ('percent (format "%d%%" (or cell 0)))
-    (_ (testcover-audit-report--format-cell cell))))
+    ('number (format "%d" (or value 0)))
+    ('percent (propertize (format "%d%%" (or value 0))
+                          'face (testcover-audit-report--face-for-percent
+                                 (or value 0))))
+    (_ (let ((s (testcover-audit-report--format-cell value)))
+         (if face (propertize s 'face face) s)))))
 
-(defun testcover-audit-report--format-table-row (string-row row specs widths)
-  "Format table row STRING-ROW using ROW values, SPECS and WIDTHS.
+(defun testcover-audit-report--format-table-row (string-row specs widths)
+  "Format table row STRING-ROW using SPECS and WIDTHS.
 
 SPECS is a list of (LABEL TYPE &optional FACE); WIDTHS are the
-computed column widths; ROW holds the raw values for percent faces."
+computed column widths.  STRING-ROW contains pre-formatted,
+propertized cell strings."
   (mapconcat
    (lambda (i)
      (let* ((spec (nth i specs))
             (type (nth 1 spec))
-            (face (nth 2 spec))
             (width (nth i widths))
             (cell (nth i string-row)))
-       (pcase type
-         ('percent
-          (propertize (format (format "%%%ds" width) cell)
-                      'face (testcover-audit-report--face-for-percent
-                             (nth i row))))
-         ('number
-          (format (format "%%%ds" width) cell))
-         (_
-          (let ((s (format (format "%%-%ds" width) cell)))
-            (if face (propertize s 'face face) s))))))
+       (format (format (if (eq type 'text) "%%-%ds" "%%%ds") width) cell)))
    (number-sequence 0 (1- (length specs)))
    "  "))
 
@@ -151,8 +119,10 @@ plist of navigation properties for that row (see
            (string-rows
             (mapcar
              (lambda (row)
-               (cl-mapcar #'testcover-audit-report--cell-string
-                          row (mapcar #'cadr headers)))
+               (cl-mapcar (lambda (spec value)
+                            (testcover-audit-report--format-spec
+                             value (nth 1 spec) (nth 2 spec)))
+                          headers row))
              rows)))
       (dolist (srow string-rows)
         (dotimes (i num-cols)
@@ -172,7 +142,7 @@ plist of navigation properties for that row (see
                for idx from 0
                do (let ((start (point)))
                     (insert (testcover-audit-report--format-table-row
-                             srow row headers widths))
+                             srow headers widths))
                     (let ((end (point)))
                       (insert "\n")
                       (when row-props-fn
@@ -210,7 +180,7 @@ propertized with the threshold face."
                   for type = (nth 1 spec)
                   for label = (car spec)
                   for face = (nth 2 spec)
-                  for cell = (testcover-audit-report--cell-string value type)
+                  for cell = (testcover-audit-report--format-spec value type face)
                   collect
                   (pcase type
                     ('percent
@@ -476,6 +446,47 @@ summary table per function."
      (t
       (testcover-audit-report--message-no-data file)))))
 
+(defun testcover-audit-report--batch-file-rows (collected)
+  "Return per-file table rows for COLLECTED.
+
+COLLECTED is a list of (FNAME FILEPATH STATS) entries as returned by
+`testcover-audit-report--collected-file-stats'."
+  (mapcar (lambda (item)
+            (let ((fstats (nth 2 item)))
+              (list (nth 0 item)
+                    (plist-get fstats :total)
+                    (plist-get fstats :covered)
+                    (plist-get fstats :onevalue)
+                    (plist-get fstats :uncovered)
+                    (plist-get fstats :percent))))
+          collected))
+
+(defun testcover-audit-report--batch-function-rows (collected)
+  "Return sorted low-coverage function rows for COLLECTED.
+
+COLLECTED is a list of (FNAME FILEPATH STATS) entries.  Each returned
+row is (FNAME FUNCTION TOTAL COVERED ONEVALUE UNCOVERED PERCENT).
+Rows are sorted by ascending PERCENT, then by FNAME."
+  (let* ((threshold testcover-audit-low-coverage-threshold)
+         (func-rows
+          (cl-loop for item in collected
+                   for key = (file-truename (expand-file-name (nth 1 item)))
+                   for funcs = (or (testcover-audit-core--function-stats key) '())
+                   append (cl-loop for s in funcs
+                                   when (< (or (plist-get s :percent) 0) threshold)
+                                   collect (list (nth 0 item)
+                                                 (or (plist-get s :name) "<anonymous>")
+                                                 (or (plist-get s :total) 0)
+                                                 (or (plist-get s :covered) 0)
+                                                 (or (plist-get s :onevalue) 0)
+                                                 (or (plist-get s :uncovered) 0)
+                                                 (or (plist-get s :percent) 0))))))
+    (sort func-rows
+          (lambda (a b)
+            (or (< (nth 6 a) (nth 6 b))
+                (and (= (nth 6 a) (nth 6 b))
+                     (string< (car a) (car b))))))))
+
 (defun testcover-audit-report--batch-report ()
   "Show a detailed coverage report for all instrumented files."
   (let* ((entries (cl-remove-if #'null testcover-audit-core--loaded-files))
@@ -492,41 +503,14 @@ summary table per function."
         (testcover-audit-report--insert-table
          '(("File" text) ("Total" number) ("Covered" number)
            ("1value" number) ("Uncovered" number) ("Coverage" percent))
-         (mapcar (lambda (item)
-                   (let ((fstats (nth 2 item)))
-                     (list (nth 0 item)
-                           (plist-get fstats :total)
-                           (plist-get fstats :covered)
-                           (plist-get fstats :onevalue)
-                           (plist-get fstats :uncovered)
-                           (plist-get fstats :percent))))
-                 collected)
+         (testcover-audit-report--batch-file-rows collected)
          (lambda (_row idx)
            (let* ((item (nth idx collected))
                   (fpath (nth 1 item)))
              (list :keymap testcover-audit-report--file-stats-keymap
                    :file fpath
                    :help-echo "RET: show file stats"))))
-        (let* ((threshold testcover-audit-low-coverage-threshold)
-               (func-rows
-               (cl-loop for item in collected
-                        for key = (file-truename (expand-file-name (nth 1 item)))
-                        for funcs = (or (testcover-audit-core--function-stats key) '())
-                        append (cl-loop for s in funcs
-                                        when (< (or (plist-get s :percent) 0) threshold)
-                                        collect (list (nth 0 item)
-                                                      (or (plist-get s :name) "<anonymous>")
-                                                      (or (plist-get s :total) 0)
-                                                      (or (plist-get s :covered) 0)
-                                                      (or (plist-get s :onevalue) 0)
-                                                      (or (plist-get s :uncovered) 0)
-                                                      (or (plist-get s :percent) 0))))))
-          (setq func-rows
-                (sort func-rows
-                      (lambda (a b)
-                        (or (< (nth 6 a) (nth 6 b))
-                            (and (= (nth 6 a) (nth 6 b))
-                                 (string< (car a) (car b)))))))
+        (let ((func-rows (testcover-audit-report--batch-function-rows collected)))
           (when func-rows
             (insert "\nFunction-level breakdown\n")
             (let ((rel-to-fpath
