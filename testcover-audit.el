@@ -75,13 +75,13 @@
 
 ;;; Code:
 
-(eval-and-compile
-  (defvar testcover-audit--package-root
-    (or (and load-file-name (file-name-directory load-file-name))
-        default-directory)
-    "Root directory of testcover-audit package source.")
-  (add-to-list 'load-path
-               (expand-file-name "lisp" testcover-audit--package-root)))
+(defvar testcover-audit--package-root
+  (or (and load-file-name (file-name-directory load-file-name))
+      default-directory)
+  "Root directory of testcover-audit package source.")
+
+(when testcover-audit--package-root
+  (add-to-list 'load-path (expand-file-name "lisp" testcover-audit--package-root)))
 
 (require 'testcover-audit-options)
 (require 'testcover-audit-core)
