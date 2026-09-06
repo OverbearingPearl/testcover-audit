@@ -25,6 +25,10 @@ jobs:
         with:
           ref: ${{ github.event.inputs.commit || github.ref }}
 
+      - name: Resolve package name
+        id: pkg
+        run: echo "package_name=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_OUTPUT"
+
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
@@ -42,7 +46,7 @@ jobs:
         id: melpazoid_run
         env:
           LOCAL_REPO: ${{ github.workspace }}
-          RECIPE: (testcover-audit :fetcher github :repo "${{ github.repository }}")
+          RECIPE: (${{ steps.pkg.outputs.package_name }} :fetcher github :repo "${{ github.repository }}")
           WARN_IS_ERROR: true
           EXIST_OK: false
         run: |
@@ -50,24 +54,36 @@ jobs:
           echo "=== Running melpazoid ===" >> build-logs.txt
           make -C ~/melpazoid 2>&1 | sed -r "s/\x1B\[[0-9;]*[mGK]//g" | tee -a build-logs.txt
 
+          # Treat any melpazoid suggestions as a build failure.
+          # The section header "with [melpazoid]" only appears when
+          # melpazoid has at least one issue to report.
+          if grep -nE 'with \[melpazoid\]' build-logs.txt; then
+            echo "::error::Melpazoid suggestions detected; failing the build."
+            exit 1
+          fi
+
       - name: Build release package
         id: build_release
         if: success() && github.event_name == 'push' && github.ref_type == 'tag'
         run: |
           {
+            PACKAGE_NAME="${{ steps.pkg.outputs.package_name }}"
             echo "=== Building release package ==="
-            mkdir -p dist/testcover-audit/lisp
-            cp testcover-audit.el README.md LICENSE dist/testcover-audit/
-            cp lisp dist/testcover-audit/
+            mkdir -p "dist/$PACKAGE_NAME"
+            cp "$PACKAGE_NAME.el" "dist/$PACKAGE_NAME/"
+            for f in README.md LICENSE; do
+              [ -f "$f" ] && cp "$f" "dist/$PACKAGE_NAME/"
+            done
+            [ -d lisp ] && cp -r lisp "dist/$PACKAGE_NAME/"
             cd dist
-            zip -r ../testcover-audit-${{ github.ref_name }}.zip testcover-audit/
+            zip -r "../${PACKAGE_NAME}-${{ github.ref_name }}.zip" "$PACKAGE_NAME/"
           } 2>&1 | tee -a build-logs.txt
 
       - name: Create GitHub Release
         if: success() && github.event_name == 'push' && github.ref_type == 'tag'
         uses: softprops/action-gh-release@v1
         with:
-          files: testcover-audit-*.zip
+          files: ${{ steps.pkg.outputs.package_name }}-*.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -81,12 +97,12 @@ jobs:
           secure: true
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASS }}
-          subject: "testcover-audit ${{ github.ref_name }} - Build Failed"
+          subject: "${{ steps.pkg.outputs.package_name }} ${{ github.ref_name }} - Build Failed"
           html_body: |
             <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;">
               <div style="background-color:#d32f2f;color:#ffffff;padding:20px;text-align:center;border-radius:8px 8px 0 0;">
                 <h1 style="margin:0;font-size:24px;">❌ Build Failed</h1>
-                <p style="margin:8px 0 0 0;opacity:0.9;font-size:14px;">testcover-audit ${{ github.ref_name }}</p>
+                <p style="margin:8px 0 0 0;opacity:0.9;font-size:14px;">${{ steps.pkg.outputs.package_name }} ${{ github.ref_name }}</p>
               </div>
 
               <div style="background-color:#ffffff;padding:24px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px;">
