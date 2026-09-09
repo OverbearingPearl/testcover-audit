@@ -6,7 +6,7 @@
 ;; URL: https://github.com/OverbearingPearl/testcover-audit
 ;; Version: 0.1.12
 ;; Package-Requires: ((emacs "27.1") (project "0.9.8"))
-;; Keywords: tools, test, coverage
+;; Keywords: tools
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;;; Commentary:
