@@ -36,8 +36,8 @@ batch or interactive mode depending on `noninteractive'."
           (load-file full-path)))))
   ;; Use batch-compatible function to ensure output is visible in terminal
   (if noninteractive
-      (ert-run-tests-batch-and-exit)
-    (ert t)))
+      (ert-run-tests-batch-and-exit "testcover-audit-")
+    (ert "testcover-audit-")))
 
 (provide 'testcover-audit-test)
 ;;; testcover-audit-test.el ends here
