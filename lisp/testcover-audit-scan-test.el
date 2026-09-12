@@ -292,4 +292,5 @@
       (delete-directory dir t))))
 
 (provide 'testcover-audit-scan-test)
+
 ;;; testcover-audit-scan-test.el ends here

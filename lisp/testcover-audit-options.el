@@ -76,4 +76,5 @@ When nil, `testcover-audit-ert-mode' does not scan automatically."
   :group 'testcover-audit)
 
 (provide 'testcover-audit-options)
+
 ;;; testcover-audit-options.el ends here

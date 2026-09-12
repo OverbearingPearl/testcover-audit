@@ -576,4 +576,5 @@
       (delete-directory dir t))))
 
 (provide 'testcover-audit-report-test)
+
 ;;; testcover-audit-report-test.el ends here

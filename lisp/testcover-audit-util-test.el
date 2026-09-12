@@ -34,4 +34,5 @@ FILE-ALIST uses the same structure as `testcover-audit-core--loaded-files'."
            testcover-audit-core--initial-vectors))
 
 (provide 'testcover-audit-util-test)
+
 ;;; testcover-audit-util-test.el ends here

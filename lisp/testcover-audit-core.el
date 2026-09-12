@@ -171,4 +171,5 @@ Return nil when no coverage data has been collected."
     (floor (/ (+ (* 100 covered) (/ total 2)) total))))
 
 (provide 'testcover-audit-core)
+
 ;;; testcover-audit-core.el ends here

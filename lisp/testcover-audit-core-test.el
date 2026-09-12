@@ -115,4 +115,5 @@
     (should (null (testcover-audit-core--all-files-stats)))))
 
 (provide 'testcover-audit-core-test)
+
 ;;; testcover-audit-core-test.el ends here

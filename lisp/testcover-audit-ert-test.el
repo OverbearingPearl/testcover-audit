@@ -67,4 +67,5 @@
       (should report-called))))
 
 (provide 'testcover-audit-ert-test)
+
 ;;; testcover-audit-ert-test.el ends here

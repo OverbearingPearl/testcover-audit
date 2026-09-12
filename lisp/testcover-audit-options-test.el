@@ -18,4 +18,5 @@
   (should (listp testcover-audit-exclude-files)))
 
 (provide 'testcover-audit-options-test)
+
 ;;; testcover-audit-options-test.el ends here

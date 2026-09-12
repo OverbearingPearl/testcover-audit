@@ -542,4 +542,5 @@ have run.  Use `testcover-audit-instrument-directory' before running tests."
     (testcover-audit-report--batch-report)))
 
 (provide 'testcover-audit-report)
+
 ;;; testcover-audit-report.el ends here

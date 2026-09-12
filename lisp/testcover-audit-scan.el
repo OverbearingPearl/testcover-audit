@@ -222,4 +222,5 @@ are skipped; use `testcover-audit-core--loaded-files' to see what was found."
        not-open dead-buffer no-instrumented no-baseline))))
 
 (provide 'testcover-audit-scan)
+
 ;;; testcover-audit-scan.el ends here

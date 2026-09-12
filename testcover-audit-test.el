@@ -40,4 +40,5 @@ batch or interactive mode depending on `noninteractive'."
     (ert "testcover-audit-")))
 
 (provide 'testcover-audit-test)
+
 ;;; testcover-audit-test.el ends here

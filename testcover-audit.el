@@ -234,4 +234,5 @@ Intended for use in CI pipelines."
   (testcover-audit-report--project-report))
 
 (provide 'testcover-audit)
+
 ;;; testcover-audit.el ends here

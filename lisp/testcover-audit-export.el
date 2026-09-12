@@ -62,4 +62,5 @@ Intended for use in CI pipelines."
       (message "Coverage OK: %d%%" percent))))
 
 (provide 'testcover-audit-export)
+
 ;;; testcover-audit-export.el ends here

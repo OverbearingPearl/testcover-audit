@@ -113,4 +113,5 @@
       (should (= kill-emacs-called 1)))))
 
 (provide 'testcover-audit-export-test)
+
 ;;; testcover-audit-export-test.el ends here

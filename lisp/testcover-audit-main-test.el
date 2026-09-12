@@ -134,4 +134,5 @@
       (should (seq-some (lambda (m) (string-match-p "reloaded" m)) msg-captured)))))
 
 (provide 'testcover-audit-main-test)
+
 ;;; testcover-audit-main-test.el ends here

@@ -43,4 +43,5 @@ The arguments are those passed to `ert-run-tests-batch' and are ignored."
     (advice-remove 'ert-run-tests-batch #'testcover-audit-ert--after-run)))
 
 (provide 'testcover-audit-ert)
+
 ;;; testcover-audit-ert.el ends here
