@@ -88,15 +88,10 @@ repos:
                           (when (p/h3-comment-p (nth i lines))
                             (let ((prev-blank
                                    (or (= i 0)
-                                       (p/blank-line-p (nth (1- i) lines))
-                                       (string-match-p p/comment-rx
-                                                       (nth (1- i) lines))))
+                                       (p/blank-line-p (nth (1- i) lines))))
                                   (next-blank
                                    (or (= i (1- (length lines)))
-                                       (p/blank-line-p (nth (1+ i) lines))
-                                       (let ((n (nth (1+ i) lines)))
-                                         (and (string-match-p p/comment-rx n)
-                                              (not (string-match-p p/h3-comment-rx n)))))))
+                                       (p/blank-line-p (nth (1+ i) lines)))))
                               (unless (and prev-blank next-blank)
                                 (push (format \"heading comment (;;;) at line %d must be surrounded by blank lines\"
                                               (1+ i))
