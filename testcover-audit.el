@@ -69,8 +69,7 @@
 ;;
 ;; All user-facing configuration is grouped under `testcover-audit'.
 ;;
-;; Internal development helper (`testcover-audit--reload-modules') is not
-;; part of the user-facing API.  The batch test runner is provided by
+;; The batch test runner and its module-reload helper are provided by
 ;; `testcover-audit-test.el' (see `testcover-audit-test-run').
 
 ;;; Code:
@@ -129,41 +128,6 @@ the current buffer in the mode line."
                             'help-echo "testcover-audit coverage")
                 (default-value 'mode-line-format)))
     (force-mode-line-update)))
-
-(defun testcover-audit--reload-modules ()
-  "Reload testcover-audit modules for updated code."
-  (let* ((root-dir testcover-audit--package-root)
-         (lisp-dir (expand-file-name "lisp" root-dir))
-         (el-files (directory-files lisp-dir nil "\\.el$")))
-    ;; Unload all features first
-    (dolist (file el-files)
-      (when (string-match "^[^.]+\\.el$" file)
-        (let ((feature (intern (file-name-base file))))
-          (when (featurep feature)
-            (condition-case nil
-                (unload-feature feature)
-              (error nil))))))
-    ;; Unload testcover-audit.el if loaded
-    (when (featurep 'testcover-audit)
-      (condition-case nil
-          (unload-feature 'testcover-audit)
-        (error nil)))
-    ;; Auto-clear all testcover-audit keymap variables
-    (mapatoms (lambda (sym)
-                (when (and (string-match-p "^testcover-audit-.*-mode-map$" (symbol-name sym))
-                           (boundp sym))
-                  (makunbound sym))))
-    ;; Load testcover-audit.el from root directory
-    (let ((testcover-audit-el (expand-file-name "testcover-audit.el" root-dir)))
-      (when (file-exists-p testcover-audit-el)
-        (load-file testcover-audit-el)))
-    ;; Load .el source files from lisp directory, ignoring .elc and test files
-    (dolist (file el-files)
-      (when (and (string-match "^[^.]+\\.el$" file)
-                 (not (string-match "-test\\.el$" file)))
-        (let ((el-path (expand-file-name file lisp-dir)))
-          (load-file el-path))))
-    (message "testcover-audit modules reloaded.")))
 
 ;; The following commands are defined in the main module as the
 ;; single entry point for user-facing API.  Submodules keep the

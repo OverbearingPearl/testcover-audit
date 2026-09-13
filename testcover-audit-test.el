@@ -19,6 +19,7 @@
 (add-to-list 'load-path (expand-file-name "lisp" testcover-audit-test--package-root))
 
 (require 'testcover-audit)
+(require 'testcover-audit-util-test)
 
 (defun testcover-audit-test-run ()
   "Run all testcover-audit test suites.
@@ -31,7 +32,7 @@ the invoking directory as its `default-directory'."
   (let ((dir default-directory))
     (ert-delete-all-tests)
     ;; Reload all modules first to ensure latest code is used
-    (testcover-audit--reload-modules)
+    (testcover-audit-util-test--reload-modules)
     ;; Load test files automatically from the lisp directory
     (let ((test-dir (expand-file-name "lisp" testcover-audit-test--package-root)))
       (dolist (file (directory-files test-dir nil "testcover-audit-.*-test\\.el$"))

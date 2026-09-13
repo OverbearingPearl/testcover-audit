@@ -7,7 +7,6 @@
 ;;; Code:
 
 (require 'ert)
-(require 'seq)
 (add-to-list 'load-path (expand-file-name ".." (file-name-directory (or load-file-name buffer-file-name))))
 (require 'testcover-audit)
 (require 'testcover-audit-util-test)
@@ -121,17 +120,6 @@
                (lambda () (setq called t))))
       (testcover-audit-project-report)
       (should called))))
-
-(ert-deftest testcover-audit-main-test--reload-modules ()
-  "Test reload-modules stubs load-file/unload-feature and reports success."
-  (let (msg-captured)
-    (cl-letf (((symbol-function 'unload-feature) (lambda (&rest _) nil))
-              ((symbol-function 'load-file) (lambda (&rest _) nil))
-              ((symbol-function 'message)
-               (lambda (format-string &rest args)
-                 (push (apply #'format format-string args) msg-captured))))
-      (testcover-audit--reload-modules)
-      (should (seq-some (lambda (m) (string-match-p "reloaded" m)) msg-captured)))))
 
 (provide 'testcover-audit-main-test)
 
