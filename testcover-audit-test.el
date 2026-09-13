@@ -23,21 +23,29 @@
 (defun testcover-audit-test-run ()
   "Run all testcover-audit test suites.
 Loads test files from the `lisp/' directory, then runs ERT in
-batch or interactive mode depending on `noninteractive'."
+batch or interactive mode depending on `noninteractive'.  In
+interactive mode, discards any existing ERT results buffer and then
+runs the tests with `ert', so the results buffer is recreated with
+the invoking directory as its `default-directory'."
   (interactive)
-  (ert-delete-all-tests)
-  ;; Reload all modules first to ensure latest code is used
-  (testcover-audit--reload-modules)
-  ;; Load test files automatically from the lisp directory
-  (let ((test-dir (expand-file-name "lisp" testcover-audit-test--package-root)))
-    (dolist (file (directory-files test-dir nil "testcover-audit-.*-test\\.el$"))
-      (let ((full-path (expand-file-name file test-dir)))
-        (when (file-exists-p full-path)
-          (load-file full-path)))))
-  ;; Use batch-compatible function to ensure output is visible in terminal
-  (if noninteractive
-      (ert-run-tests-batch-and-exit "testcover-audit-")
-    (ert "testcover-audit-")))
+  (let ((dir default-directory))
+    (ert-delete-all-tests)
+    ;; Reload all modules first to ensure latest code is used
+    (testcover-audit--reload-modules)
+    ;; Load test files automatically from the lisp directory
+    (let ((test-dir (expand-file-name "lisp" testcover-audit-test--package-root)))
+      (dolist (file (directory-files test-dir nil "testcover-audit-.*-test\\.el$"))
+        (let ((full-path (expand-file-name file test-dir)))
+          (when (file-exists-p full-path)
+            (load-file full-path)))))
+    (let ((default-directory dir))
+      ;; Use batch-compatible function to ensure output is visible in terminal
+      (if noninteractive
+          (ert-run-tests-batch-and-exit "testcover-audit-")
+        ;; ERT's results buffer name is hard-coded as "*ert*".
+        (when (get-buffer "*ert*")
+          (kill-buffer "*ert*"))
+        (ert "testcover-audit-")))))
 
 (provide 'testcover-audit-test)
 
