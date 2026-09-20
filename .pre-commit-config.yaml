@@ -1,3 +1,78 @@
+# =============================================================================
+# Pre-commit checks for this Emacs package.
+#
+# This header is the single source of truth for what is enforced.  Whenever a
+# check is added, removed, tightened, or relaxed in the hook below, YOU MUST
+# update this header in the same change so the two stay in sync.
+# =============================================================================
+#
+# A local `emacs -Q --batch` hook runs the checks below.  Per-file checks
+# report only failing files; any failure prints to stderr and aborts the
+# commit by exiting non-zero.
+#
+# Global checks (run once, before per-file checks)
+# ------------------------------------------------
+#   dependency-direction
+#     Module requires must obey the module classes derived from the repo
+#     layout.  Allowed require targets per class:
+#       root-main     -> lisp-business
+#       root-test     -> root-main, root-test, lisp-business, lisp-test
+#       lisp-business -> lisp-business
+#       lisp-test     -> root-main, lisp-business, lisp-test
+#     Requires of features outside this repo (e.g. built-ins) are ignored.
+#     The repo main file <repo>.el must exist in the repo root or the hook
+#     aborts immediately.
+#
+#   portability
+#     This file is project-agnostic: no project-specific names are
+#     hard-coded anywhere.  The repository name is derived at run time
+#     from `git rev-parse --show-toplevel' and used to locate the root
+#     entry module <repo>.el, whose defcustom forms register the user
+#     options as special variables before test files are byte-compiled.
+#     Copying this file into another elisp project with the same layout
+#     (root main module, optional root test module, lisp/ business and
+#     test sub-modules) works without edits.
+#
+# Per-file checks (applied to each matched .el file)
+# --------------------------------------------------
+#   checkdoc                -- checkdoc-current-buffer, autofix disabled.
+#   package-lint            -- package-lint-current-buffer; the main file is
+#                              pinned to <repo>.el at the repo root.
+#   byte-compile            -- byte-compile-file; non-test files are loaded
+#                              after compiling.
+#   format-check            -- no trailing whitespace; no more than one
+#                              consecutive blank line.
+#   heading-comment         -- `;;;` comment lines (except `;;;###` autoload
+#                              cookies) must be surrounded by blank lines.
+#   banned-construct        -- forbids `;; package-lint: disable`,
+#                              `declare-function`, `ignore-errors`, and
+#                              `eval-and-compile`.
+#   meta-info               -- header/meta requirements:
+#                              * non-test files require `;; Copyright`,
+#                                `;; Author`, `;; Assisted-by`, `;; URL`,
+#                                and `;; SPDX-License-Identifier`.
+#                              * test files forbid `;; Copyright`,
+#                                `;; Author`, `;; Assisted-by`, `;; URL`,
+#                                `;; Version`, `;; Package-Requires`,
+#                                `;; Keywords`, and
+#                                `;; SPDX-License-Identifier`.
+#                              * `;;; Commentary` is required and must be
+#                                non-empty.
+#                              * `;; Keywords:` entries must be known to
+#                                `finder-known-keywords`.
+#   module-name-consistency -- the file must `(provide '<file-base>)`,
+#                              quoted or unquoted.
+#   module-prefix           -- definitions (defun, defmacro, defvar,
+#                              defcustom, defconst, defalias, cl-defun,
+#                              cl-defmacro, ert-deftest) must use the
+#                              `<file-base>-` prefix; `defcustom` uses the
+#                              `<repo>-` prefix; the root main file may
+#                              define `<repo>` as its entry command.
+#
+# Checked files, in order: lisp/*.el production (sorted), root <repo>.el,
+# lisp/*-test.el (sorted), root <repo>-test.el.
+# =============================================================================
+
 repos:
   - repo: local
     hooks:
@@ -5,7 +80,7 @@ repos:
         name: Emacs package lint and byte compile
         entry: >-
           emacs -Q --batch --directory . --directory ./lisp
-          --eval "(progn (require 'package) (setq package-load-list '((full-gtd nil) all)) (package-initialize) (setq load-prefer-newer t) (setq load-path (append (list (expand-file-name \"lisp\") (expand-file-name \".\")) load-path)))"
+          --eval "(progn (require 'package) (setq package-load-list '(all)) (package-initialize) (setq load-prefer-newer t) (setq load-path (append (list (expand-file-name \"lisp\") (expand-file-name \".\")) load-path)))"
           --eval "(progn
                     (require 'checkdoc)
                     (require 'package-lint)
@@ -235,8 +310,36 @@ repos:
                               (princ (p/indent pl))
                               (princ \"\n\"))))
                         ;; byte-compile
+                        ;; Before compiling, evaluate the file's own top-level
+                        ;; require features so that their defcustom/defvar forms
+                        ;; are loaded into the compiler's obarray and the flagged
+                        ;; names are known as special variables at compile time.
+                        ;; This applies to all files, including test files, so
+                        ;; tests need no local defvar declarations for options
+                        ;; bound in other modules.
                         (let ((inhibit-message t)
-                              (byte-compile-verbose nil))
+                              (byte-compile-verbose nil)
+                              (byte-compile-dest-file-function
+                               (lambda (f)
+                                 (make-temp-file (concat (file-name-nondirectory f) \"-\") nil \".elc\"))))
+                          (dolist (feature (p/file-top-level-requires file))
+                            (condition-case nil
+                                (require feature)
+                              (error nil)))
+                          ;; Also require the root entry module, whose feature
+                          ;; symbol is derived from the repository name.  Its
+                          ;; defcustom forms are the only place the real user
+                          ;; options are bound as special variables; the lisp/
+                          ;; sub-modules carry only bare (defvar name) forward
+                          ;; declarations, which do not register the variables
+                          ;; as special when loaded, so loading the root module
+                          ;; is required to silence unused-lexical-variable
+                          ;; warnings in test files referencing those options.
+                          (condition-case nil
+                              (require (intern (file-name-nondirectory
+                                                (directory-file-name
+                                                 (p/git-toplevel)))))
+                            (error nil))
                           (let ((compiled-p (byte-compile-file file)))
                             ;; `byte-compile-file' returns non-nil on success,
                             ;; not the generated byte-code filename.
@@ -424,13 +527,16 @@ repos:
                         ;; `defcustom' names are public API and follow the
                         ;; package (`<repo>') prefix per Emacs convention, so
                         ;; check them against the repo prefix rather than the
-                        ;; file-local prefix.  Other def-kinds stay scoped to
-                        ;; their module.
+                        ;; file-local prefix.  The entry command of the
+                        ;; package is named after the package itself, so the
+                        ;; root main file may define `<repo>' on its own.
+                        ;; Other def-kinds stay scoped to their module.
                         (let* ((file-base (file-name-base file))
-                               (repo-prefix
-                                (concat (file-name-nondirectory
-                                         (directory-file-name (p/git-toplevel)))
-                                        \"-\"))
+                               (repo-main (eq (p/module-class file) 'root-main))
+                               (repo-name
+                                (file-name-nondirectory
+                                 (directory-file-name (p/git-toplevel))))
+                               (repo-prefix (concat repo-name \"-\"))
                                (expected-prefix (concat file-base \"-\"))
                                 (prefix-errors '())
                                 (def-kinds '(defun defmacro defvar defcustom defconst defalias cl-defun cl-defmacro ert-deftest)))
@@ -448,8 +554,15 @@ repos:
                                              (required-prefix
                                               (if (eq kind 'defcustom)
                                                   repo-prefix
-                                                expected-prefix)))
+                                                expected-prefix))
+                                             (entry-command-p
+                                              (and repo-main
+                                                   (eq kind 'defun)
+                                                   (symbolp name)
+                                                   (string= (symbol-name name)
+                                                            repo-name))))
                                         (when (and (symbolp name)
+                                                   (not entry-command-p)
                                                    (not (string-prefix-p
                                                          required-prefix
                                                          (symbol-name name))))
