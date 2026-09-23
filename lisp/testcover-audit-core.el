@@ -32,13 +32,13 @@ from statistics.")
   "Store current testcover vectors as the delta baseline.
 The arguments are those passed to `testcover-start' or
 `testcover-this-defun' and are ignored."
-  (dolist (form-data edebug-form-data)
-    (let* ((sym (edebug--form-data-name form-data))
-           (coverage (and sym (get sym 'edebug-coverage))))
-      (when (and sym coverage
-                 (eq (get sym 'edebug-behavior) 'testcover))
-        (puthash sym (copy-sequence coverage)
-                 testcover-audit-core--initial-vectors)))))
+  (mapatoms
+   (lambda (sym)
+     (let ((coverage (get sym 'edebug-coverage)))
+       (when (and coverage
+                  (eq (get sym 'edebug-behavior) 'testcover))
+         (puthash sym (copy-sequence coverage)
+                  testcover-audit-core--initial-vectors))))))
 
 (unless (advice-member-p #'testcover-audit-core--capture-initial-vectors
                          'testcover-start)
