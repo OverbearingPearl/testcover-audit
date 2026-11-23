@@ -50,12 +50,11 @@
   (let ((buf (generate-new-buffer "*tca-msg-test*")))
     (unwind-protect
         (with-current-buffer buf
-          (let (messages)
-            (cl-letf (((symbol-function 'message)
-                       (lambda (format-string &rest args)
-                         (push (apply #'format format-string args) messages))))
+          (let ((util-tests--messages nil))
+            (cl-letf (((symbol-function 'message) #'util-tests--message-stub))
               (testcover-audit-report--show-stats))
-            (should (string-match-p "No coverage data" (car messages)))))
+            (should (string-match-p "No coverage data"
+                                    (car util-tests--messages)))))
       (kill-buffer buf))))
 
 (ert-deftest report-tests--stats-for-file ()
@@ -78,14 +77,13 @@
                                                                   testcover-1value
                                                                   edebug-ok-coverage
                                                                   edebug-ok-coverage])))))
-                (messages nil))
+                (util-tests--messages nil))
             (util-tests--install-baselines
              testcover-audit-core--loaded-files)
-            (cl-letf (((symbol-function 'message)
-                       (lambda (format-string &rest args)
-                         (push (apply #'format format-string args) messages))))
+            (cl-letf (((symbol-function 'message) #'util-tests--message-stub))
               (testcover-audit-report--show-stats))
-            (should (equal messages '("Coverage: 75% (2/4)")))))
+            (should (equal util-tests--messages
+                           '("Coverage: 75% (2/4)")))))
       (kill-buffer buf))))
 
 (ert-deftest report-tests--show-all-stats-with-data ()
@@ -116,7 +114,8 @@
 
 (ert-deftest report-tests--show-function-stats-line-level ()
   "Show-function-stats shows line breakdown with live position data."
-  (let* ((file (make-temp-file "tca-line-report" nil ".el"))
+  (let* ((testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+         (file (make-temp-file "tca-line-report" nil ".el"))
          (symbol (make-symbol "tca-line-report-fn"))
          (buf (find-file-noselect file))
          (_display-buffer-called nil))
@@ -136,7 +135,6 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
-          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
           (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (let ((testcover-audit-core--loaded-files nil))
@@ -206,16 +204,16 @@
 (ert-deftest report-tests--batch-report-no-data-msg ()
   "Test batch-report shows message when no data is collected."
   (let ((testcover-audit-core--loaded-files nil)
-        (msg-captured nil))
-    (cl-letf (((symbol-function 'message)
-               (lambda (format-string &rest args)
-                 (push (apply #'format format-string args) msg-captured))))
+        (util-tests--messages nil))
+    (cl-letf (((symbol-function 'message) #'util-tests--message-stub))
       (testcover-audit-report--batch-report))
-    (should (seq-some (lambda (m) (string-match-p "No coverage data collected" m)) msg-captured))))
+    (should (seq-some (lambda (m) (string-match-p "No coverage data collected" m))
+                      util-tests--messages))))
 
 (ert-deftest report-tests--stats-for-file-live ()
   "Stats-for-file prefers live buffer data over the scan snapshot."
-  (let* ((file (make-temp-file "tca-live-stats" nil ".el"))
+  (let* ((testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+         (file (make-temp-file "tca-live-stats" nil ".el"))
          (symbol (make-symbol "tca-live-stats-fn"))
          (buf (find-file-noselect file)))
     (unwind-protect
@@ -228,7 +226,6 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-ok-coverage edebug-ok-coverage edebug-ok-coverage])
-          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
           (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           ;; Stale snapshot must not shadow live data.
@@ -247,7 +244,8 @@
 
 (ert-deftest report-tests--show-all-stats-live ()
   "Show-all-stats works from live buffer data without a scan snapshot."
-  (let* ((file (make-temp-file "tca-live-all" nil ".el"))
+  (let* ((testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+         (file (make-temp-file "tca-live-all" nil ".el"))
          (symbol (make-symbol "tca-live-all-fn"))
          (buf (find-file-noselect file))
          (_display-buffer-called nil))
@@ -262,7 +260,6 @@
           (put symbol 'edebug-coverage
                [edebug-unknown testcover-1value
                 edebug-ok-coverage edebug-ok-coverage])
-          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
           (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (let ((testcover-audit-core--loaded-files nil))
@@ -281,7 +278,8 @@
 
 (ert-deftest report-tests--show-function-stats-live ()
   "Show-function-stats lists live functions without a scan snapshot."
-  (let* ((file (make-temp-file "tca-live-fn" nil ".el"))
+  (let* ((testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+         (file (make-temp-file "tca-live-fn" nil ".el"))
          (symbol (make-symbol "tca-live-fn"))
          (buf (find-file-noselect file))
          (_display-buffer-called nil))
@@ -295,7 +293,6 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-unknown edebug-unknown])
-          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
           (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (let ((testcover-audit-core--loaded-files nil))
@@ -314,7 +311,8 @@
 
 (ert-deftest report-tests--show-all-stats-no-line-level ()
   "Show-all-stats skips line-level breakdown even with position data."
-  (let* ((file (make-temp-file "tca-all-no-line" nil ".el"))
+  (let* ((testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+         (file (make-temp-file "tca-all-no-line" nil ".el"))
          (symbol (make-symbol "tca-all-no-line-fn"))
          (buf (find-file-noselect file))
          (_display-buffer-called nil))
@@ -333,7 +331,6 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
-          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
           (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (let ((testcover-audit-core--loaded-files nil))
@@ -529,7 +526,8 @@
 
 (ert-deftest report-tests--show-function-stats-with-function ()
   "Show-function-stats moves point to the requested function."
-  (let* ((file (make-temp-file "tca-nav-fn" nil ".el"))
+  (let* ((testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+         (file (make-temp-file "tca-nav-fn" nil ".el"))
          (symbol (make-symbol "tca-nav-target"))
          (buf (find-file-noselect file)))
     (unwind-protect
@@ -542,7 +540,6 @@
           (put symbol 'edebug-behavior 'testcover)
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-unknown edebug-unknown])
-          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
           (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))

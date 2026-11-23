@@ -14,7 +14,8 @@
 
 (ert-deftest scan-tests--collects-coverage ()
   "Scan-directory collects vectors from testcover-instrumented definitions."
-  (let* ((dir (make-temp-file "tca-scan-collect" t))
+  (let* ((testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+         (dir (make-temp-file "tca-scan-collect" t))
          (file (expand-file-name "foo.el" dir))
          (symbol (make-symbol "tca-scan-fixture-function")))
     (with-temp-file file (insert ";; dummy"))
@@ -31,7 +32,6 @@
             (put symbol 'edebug-coverage
                  [edebug-unknown testcover-1value
                   edebug-ok-coverage edebug-ok-coverage])
-            (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
             (util-tests--install-symbol-baseline
              symbol (get symbol 'edebug-coverage))
             (let ((testcover-audit-exclude-files nil))
@@ -68,26 +68,25 @@
   "Scan reports files skipped because they have no visiting buffer."
   (let* ((dir (make-temp-file "tca-scan-debug" t))
          (file (expand-file-name "missing-buffer.el" dir))
-         (messages nil))
+         (util-tests--messages nil))
     (unwind-protect
         (progn
           (with-temp-file file
             (insert ";; dummy"))
           (let ((testcover-audit-exclude-files nil))
-            (cl-letf (((symbol-function 'message)
-                       (lambda (format-string &rest args)
-                         (push (apply #'format format-string args) messages))))
+            (cl-letf (((symbol-function 'message) #'util-tests--message-stub))
               (testcover-audit-scan--scan-directory dir)))
           (should
            (seq-some
             (lambda (message)
               (string-match-p "Skipped 1 files: 1 not open" message))
-            messages)))
+            util-tests--messages)))
       (delete-directory dir t))))
 
 (ert-deftest scan-tests--definition-line-stats ()
   "Definition-line-stats groups coverage by source line."
-  (let* ((dir (make-temp-file "tca-line" t))
+  (let* ((testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+         (dir (make-temp-file "tca-line" t))
          (file (expand-file-name "foo.el" dir))
          (symbol (make-symbol "tca-line-fn"))
          (buf nil))
@@ -108,7 +107,6 @@
             (put symbol 'edebug-behavior 'testcover)
             (put symbol 'edebug-coverage
                  [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
-            (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
             (util-tests--install-symbol-baseline
              symbol (get symbol 'edebug-coverage))
             (let ((line-stats (testcover-audit-scan--definition-line-stats
@@ -172,7 +170,8 @@
 
 (ert-deftest scan-tests--buffer-function-stats-live ()
   "Buffer-function-stats reads live coverage without touching loaded-files."
-  (let* ((dir (make-temp-file "tca-scan-live-fn" t))
+  (let* ((testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+         (dir (make-temp-file "tca-scan-live-fn" t))
          (file (expand-file-name "foo.el" dir))
          (symbol (make-symbol "tca-live-fn"))
          (buf nil))
@@ -190,7 +189,6 @@
           (put symbol 'edebug-coverage
                [edebug-unknown testcover-1value
                 edebug-ok-coverage edebug-ok-coverage])
-          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
           (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (let ((rows (testcover-audit-scan--buffer-function-stats file)))
@@ -208,7 +206,8 @@
 
 (ert-deftest scan-tests--buffer-stats-live ()
   "Buffer-stats aggregates live coverage from the visiting buffer."
-  (let* ((dir (make-temp-file "tca-scan-live-stats" t))
+  (let* ((testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
+         (dir (make-temp-file "tca-scan-live-stats" t))
          (file (expand-file-name "foo.el" dir))
          (symbol (make-symbol "tca-live-stats-fn"))
          (buf nil))
@@ -226,7 +225,6 @@
           (put symbol 'edebug-coverage
                [edebug-unknown testcover-1value
                 edebug-ok-coverage edebug-ok-coverage])
-          (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
           (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (let ((stats (testcover-audit-scan--buffer-stats file)))
