@@ -116,42 +116,132 @@ Exports use only the snapshot collected by `testcover-audit-scan-directory`. Wit
 
 ### CI usage
 
-`testcover-audit-ci-check` is designed for batch mode. A naive `emacs --batch ... -f testcover-audit-scan-directory` invocation does **not** work: in batch mode nothing opens or instruments source files. Use a small script instead. Save this as `ci-coverage.el`:
+`testcover-audit-ci-check` is designed for batch mode. A naive `emacs --batch ... -f testcover-audit-scan-directory` invocation does **not** work: in batch mode nothing has opened or instrumented the source files, and the scan finds no data. Coverage has to be measured in one Emacs session that instruments the sources, runs the tests, and only then scans.
+
+Save this as `ci-coverage.el` in the project and edit the three settings at the top:
 
 ```elisp
-;;; ci-coverage.el --- Run project coverage in CI. -*- lexical-binding: t; -*-
-(require 'ert)
-(require 'testcover-audit)
-(setq testcover-audit-ci-threshold 80)
+;;; ci-coverage.el --- Count project coverage in batch mode.  -*- lexical-binding: t; -*-
+;;
+;; Run from the project root:
+;;
+;;   emacs -Q --batch -L . -l ci-coverage.el
+;;
+;; Only the three defvars below are project-specific.
 
-(let* ((root "/path/to/project")
-       (all (directory-files-recursively root "\\.el$")))
-  ;; 1. Load and instrument every non-test .el file.
-  (dolist (file all)
-    (unless (string-match-p "-test\\.el$" file)
-      (with-current-buffer (find-file-noselect file)
-        (require 'testcover)
-        (testcover-start (buffer-file-name)))))
-  ;; 2. Load and run the test files.
-  (dolist (file all)
-    (when (string-match-p "-test\\.el$" file)
-      (load-file file)))
+(require 'package)
+(package-initialize)            ; an installed testcover-audit is found here
+(require 'ert)
+(require 'testcover)
+(require 'testcover-audit)
+
+(defvar ci-coverage-sources '("lisp" "testcover-audit.el")
+  "Files and directories to instrument, relative to the project root.
+
+Point these at your own code only.  `testcover-start' opens every file it is
+handed and evaluates it, so a vendored, generated, or build-tool file that
+needs a context the script has not set up fails here instead of being skipped.")
+
+(defvar ci-coverage-tests "test"
+  "Directory holding the test files, relative to the project root.")
+
+(defvar ci-coverage-json "build/coverage.json"
+  "Machine-readable report to write, relative to the project root.")
+
+;; One regexp for both directions: the scan skips test files, and so does the
+;; instrumentation loop below, so a test file is never counted as source.
+(setq testcover-audit-test-file-regexp "[-_]tests?\\.el\\'"
+      testcover-audit-ci-threshold 80)
+
+(let* ((root (file-name-as-directory (expand-file-name ".")))
+       (paths (mapcar (lambda (path) (expand-file-name path root))
+                      ci-coverage-sources))
+       (sources (mapcan (lambda (path)
+                          (if (file-directory-p path)
+                              (directory-files-recursively path "\\.el\\'")
+                            (list path)))
+                        paths))
+       (tests (directory-files-recursively
+               (expand-file-name ci-coverage-tests root) "\\.el\\'"))
+       (json (expand-file-name ci-coverage-json root)))
+  ;; Instrumenting evaluates each file, so the directories its `require's
+  ;; resolve against have to be on `load-path' before the first call.
+  (setq load-path
+        (append (delete-dups (mapcar #'file-name-directory sources))
+                (list (expand-file-name ci-coverage-tests root))
+                load-path))
+  ;; 1. Instrument the sources.
+  (dolist (file sources)
+    (testcover-start file))
+  ;; 2. Run the tests in the same session, while those buffers are open.
+  (dolist (file tests)
+    (load-file file))
   (let ((result (ert-run-tests-batch t)))
-    ;; 3. Collect data and enforce the coverage threshold.
+    ;; 3. Measure.  A test failure and an empty measurement are different
+    ;;    failures and get different exit codes.
+    (when (> (ert-stats-completed-unexpected result) 0)
+      (kill-emacs 3))
     (testcover-audit-scan-directory root)
     (unless testcover-audit-core--loaded-files
-      (error "No coverage data collected - did you run testcover-start?"))
-    (testcover-audit-ci-check)
-    ;; 4. Test failures must also fail CI.
-    (when (> (ert-stats-completed-unexpected result) 0)
-      (kill-emacs 3))))
+      (kill-emacs 4))
+    (make-directory (file-name-directory json) t)
+    (testcover-audit-export-json json)
+    ;; 4. Gate.  This exits 1 below the threshold, in batch mode, so getting
+    ;;    past it means the number passed.
+    (testcover-audit-ci-check)))
 ```
 
 Run it with:
 
 ```sh
-emacs -Q --batch -L . -L lisp -l ci-coverage.el
+emacs -Q --batch -L . -l ci-coverage.el
 ```
+
+The exit status is what CI reads: 0 above the threshold, 1 below it, 3 when a test failed, 4 when nothing was measured. Working from a checkout of this package instead of an install, add `-L lisp`; the defaults above already match this repository's layout.
+
+A workflow for `.github/workflows/coverage.yml` that does the same:
+
+```yaml
+name: coverage
+on: [push, pull_request]
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Emacs
+        run: sudo apt-get update && sudo apt-get install -y emacs-nox
+
+      - name: Install testcover-audit
+        run: |
+          cat > install-testcover-audit.el <<'EOF'
+          (require 'package)
+          (add-to-list 'package-archives
+                       '("melpa" . "https://melpa.org/packages/") t)
+          (package-initialize)
+          (package-refresh-contents)
+          (package-install 'testcover-audit)
+          EOF
+          emacs -Q --batch -l install-testcover-audit.el
+
+      - name: Measure coverage
+        run: emacs -Q --batch -L . -l ci-coverage.el
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: build/coverage.json
+          if-no-files-found: warn
+```
+
+The parts that bite in batch mode, in the order they usually reach you:
+
+- **Test files must not be instrumented.** `testcover-audit-test-file-regexp` decides what counts as a test file, and the default only matches `foo-test.el` and `foo_test.el`. A suite named `foo-tests.el`, or a `test/` directory holding helpers with other names, is instrumented as source unless you widen the regexp, as above.
+- **Only your own code.** `testcover-start` does not quietly skip anything: a package cache, a vendor tree, or a config file whose top level assumes definitions from somewhere else fails during instrumentation. List the source paths instead of pointing at the project root.
+- **The instrumented buffers must stay open.** They are what the scan reads; an Emacs that closes them, or a separate process for the tests, measures nothing.
+- **`require` resolves against `load-path`.** `testcover-start` evaluates a file, so every `require` in it has to succeed at that moment, not after the test files happen to load.
 
 ### ERT integration
 
