@@ -1,0 +1,40 @@
+name: Perf
+
+# Nightly, not per pull request.  The budgets are ratios and generous absolute
+# numbers, but a shared runner is a shared runner: making this blocking on
+# every push teaches people to read a red mark as noise.  One run at a quiet
+# hour, failing into the same mail as everything else, answers the only
+# question worth asking -- did a number move that should not have.
+
+on:
+  schedule:
+    - cron: '40 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/perf
+        with:
+          report: 'false'
+
+      - if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          stage: perf
+          smtp-host: ${{ secrets.SMTP_HOST }}
+          smtp-port: ${{ secrets.SMTP_PORT }}
+          smtp-user: ${{ secrets.SMTP_USER }}
+          smtp-pass: ${{ secrets.SMTP_PASS }}
+          to: ${{ secrets.NOTIFY_EMAIL }}
