@@ -405,9 +405,9 @@
             (should (eq (lookup-key (current-local-map) (kbd "j")) #'next-line))
             (should (eq (lookup-key (current-local-map) (kbd "k")) #'previous-line))
             (should (eq (lookup-key (current-local-map) (kbd "n")) #'next-line))
-            (should (eq (lookup-key (current-local-map) (kbd "p")) #'previous-line)))))
+            (should (eq (lookup-key (current-local-map) (kbd "p")) #'previous-line))))
       (report-tests--kill-report-buffer
-       "*Testcover Batch Report*")))
+       "*Testcover Batch Report*"))))
 
 (ert-deftest report-tests--function-report-navigation-map ()
   "Function report buffer uses the navigation keymap."
@@ -489,9 +489,9 @@
               (should (eq (get-text-property (point) 'keymap)
                           testcover-audit-report--function-stats-keymap))
               (should (string= (get-text-property (point) 'testcover-audit-report-function)
-                               "low-fn"))))))
+                               "low-fn")))))
       (report-tests--kill-report-buffer
-       "*Testcover Batch Report*")))
+       "*Testcover Batch Report*"))))
 
 (ert-deftest report-tests--goto-file-stats ()
   "Goto-file-stats calls show-all-stats with the associated file."
