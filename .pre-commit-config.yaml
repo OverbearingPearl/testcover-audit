@@ -1,0 +1,33 @@
+# Local hooks only: the message is checked before it exists, lint before a
+# commit, tests before a push. The message shape is ci/check-commit-message.sh
+# and is not configurable; this file is the project's now, so drop that hook or
+# point it at your own script if your rules differ.
+minimum_pre_commit_version: '3.0.0'
+fail_fast: true
+repos:
+  - repo: local
+    hooks:
+      - id: checks
+        name: checks (identical to CI lint)
+        entry: make lint
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+        require_serial: true
+
+      - id: commit-message
+        name: commit message shape
+        entry: ci/check-commit-message.sh
+        language: system
+        stages: [commit-msg]
+
+      # A commit may be rough; a push should be clean.
+      - id: tests
+        name: ERT (identical to CI test)
+        entry: make test
+        language: system
+        always_run: true
+        pass_filenames: false
+        require_serial: true
+        stages: [pre-push]

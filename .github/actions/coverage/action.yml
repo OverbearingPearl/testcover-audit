@@ -1,0 +1,38 @@
+name: coverage
+description: >-
+  Report what the test suite reaches.  The table is printed, the JSON is
+  written, and both are uploaded as artifacts; nothing here fails on a
+  percentage, because instrumentation changes what the code does -- a suite
+  with timing assertions can be red here and green in the test job.  The test
+  job owns correctness; this one owns having a report to read.
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-emacs
+
+    # Same cache as lint: both install into .cache/elpa, and a cache entry
+    # that only one of them can use would be downloaded twice.
+    - uses: actions/cache@v4
+      with:
+        path: .cache/elpa
+        key: elpa-${{ runner.os }}-${{ hashFiles('ci/deps.el') }}
+
+    - name: measure
+      shell: bash
+      # `pipefail` so a crashed Emacs is not hidden by the tee.  An empty
+      # table is the one failure worth stopping for: no coverage data means
+      # the scan collected nothing, not that the tests reached nothing.
+      run: |
+        set -o pipefail
+        ci/run-coverage.sh | tee coverage.txt
+        [ -s coverage.txt ] || { echo "::error::no coverage report was produced"; exit 1; }
+
+    - name: upload the report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage
+        path: |
+          coverage.txt
+          build/coverage.json
+        if-no-files-found: warn

@@ -5,7 +5,7 @@
 ;; Assisted-by: DeepSeek:deepseek-v4-flash, GLM:glm-5.3-flash, Laguna:laguna-s-2.1
 ;; URL: https://github.com/OverbearingPearl/testcover-audit
 ;; Version: 1.0.1
-;; Package-Requires: ((emacs "27.1") (project "0.9.8"))
+;; Package-Requires: ((emacs "29.4") (project "0.9.8"))
 ;; Keywords: tools
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -69,8 +69,8 @@
 ;;
 ;; All user-facing configuration is grouped under `testcover-audit'.
 ;;
-;; The batch test runner and its module-reload helper are provided by
-;; `testcover-audit-test.el' (see `testcover-audit-test-run').
+;; Tests live under `test/' and are run by the shared suite (`make test');
+;; there is no package-level batch runner.
 
 ;;; Code:
 

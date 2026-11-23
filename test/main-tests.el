@@ -1,4 +1,4 @@
-;;; testcover-audit-main-test.el --- Tests for testcover-audit main module -*- lexical-binding: t; -*-
+;;; main-tests.el --- Tests for testcover-audit main module -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
@@ -9,9 +9,9 @@
 (require 'ert)
 (add-to-list 'load-path (expand-file-name ".." (file-name-directory (or load-file-name buffer-file-name))))
 (require 'testcover-audit)
-(require 'testcover-audit-util-test)
+(require 'util-tests)
 
-(ert-deftest testcover-audit-main-test--mode ()
+(ert-deftest main-tests--mode ()
   "Test that minor mode toggles correctly."
   (let ((buffer (generate-new-buffer "*tca-test*")))
     (unwind-protect
@@ -22,7 +22,7 @@
           (should-not testcover-audit-mode))
       (kill-buffer buffer))))
 
-(ert-deftest testcover-audit-main-test--refresh-mode-line ()
+(ert-deftest main-tests--refresh-mode-line ()
   "Test that refresh-mode-line adds coverage information."
   (let* ((file (make-temp-file "tca-ml-test" nil ".el"))
          (buffer (find-file-noselect file)))
@@ -33,7 +33,7 @@
                                                                   testcover-1value
                                                                   edebug-ok-coverage
                                                                   edebug-ok-coverage]))))))
-            (testcover-audit-util-test--install-baselines
+            (util-tests--install-baselines
              testcover-audit-core--loaded-files)
             (testcover-audit--refresh-mode-line))
           (should (string-match-p "PCTcov" (prin1-to-string mode-line-format)))
@@ -41,7 +41,7 @@
       (kill-buffer buffer)
       (delete-file file))))
 
-(ert-deftest testcover-audit-main-test--export-org-wrapper ()
+(ert-deftest main-tests--export-org-wrapper ()
   "Test export-org wrapper calls underlying function."
   (let (called)
     (cl-letf (((symbol-function 'testcover-audit-export--export-org)
@@ -49,7 +49,7 @@
       (testcover-audit-export-org "/tmp/test.org")
       (should (string= called "/tmp/test.org")))))
 
-(ert-deftest testcover-audit-main-test--export-json-wrapper ()
+(ert-deftest main-tests--export-json-wrapper ()
   "Test export-json wrapper calls underlying function."
   (let (called)
     (cl-letf (((symbol-function 'testcover-audit-export--export-json)
@@ -57,7 +57,7 @@
       (testcover-audit-export-json "/tmp/test.json")
       (should (string= called "/tmp/test.json")))))
 
-(ert-deftest testcover-audit-main-test--ci-check-wrapper ()
+(ert-deftest main-tests--ci-check-wrapper ()
   "Test ci-check wrapper calls underlying function."
   (let (called)
     (cl-letf (((symbol-function 'testcover-audit-export--ci-check)
@@ -65,7 +65,7 @@
       (testcover-audit-ci-check)
       (should called))))
 
-(ert-deftest testcover-audit-main-test--show-stats-wrapper ()
+(ert-deftest main-tests--show-stats-wrapper ()
   "Test show-stats wrapper calls underlying function."
   (let (called)
     (cl-letf (((symbol-function 'testcover-audit-report--show-stats)
@@ -73,7 +73,7 @@
       (testcover-audit-show-stats)
       (should called))))
 
-(ert-deftest testcover-audit-main-test--show-all-stats-wrapper ()
+(ert-deftest main-tests--show-all-stats-wrapper ()
   "Test show-all-stats wrapper calls underlying function."
   (let (called)
     (cl-letf (((symbol-function 'testcover-audit-report--show-all-stats)
@@ -81,7 +81,7 @@
       (testcover-audit-show-all-stats)
       (should called))))
 
-(ert-deftest testcover-audit-main-test--show-function-stats-wrapper ()
+(ert-deftest main-tests--show-function-stats-wrapper ()
   "Test show-function-stats wrapper calls underlying function."
   (let (called)
     (cl-letf (((symbol-function 'testcover-audit-report--show-function-stats)
@@ -89,7 +89,7 @@
       (testcover-audit-show-function-stats)
       (should called))))
 
-(ert-deftest testcover-audit-main-test--batch-report-wrapper ()
+(ert-deftest main-tests--batch-report-wrapper ()
   "Test batch-report wrapper calls underlying function."
   (let (called)
     (cl-letf (((symbol-function 'testcover-audit-report--batch-report)
@@ -97,7 +97,7 @@
       (testcover-audit-batch-report)
       (should called))))
 
-(ert-deftest testcover-audit-main-test--instrument-directory-wrapper ()
+(ert-deftest main-tests--instrument-directory-wrapper ()
   "Test instrument-directory wrapper calls underlying function."
   (let (called)
     (cl-letf (((symbol-function 'testcover-audit-scan--instrument-directory)
@@ -105,7 +105,7 @@
       (testcover-audit-instrument-directory "/tmp/src")
       (should (string= called "/tmp/src")))))
 
-(ert-deftest testcover-audit-main-test--scan-directory-wrapper ()
+(ert-deftest main-tests--scan-directory-wrapper ()
   "Test scan-directory wrapper calls underlying function."
   (let (called)
     (cl-letf (((symbol-function 'testcover-audit-scan--scan-directory)
@@ -113,7 +113,7 @@
       (testcover-audit-scan-directory "/tmp/src")
       (should (string= called "/tmp/src")))))
 
-(ert-deftest testcover-audit-main-test--project-report-wrapper ()
+(ert-deftest main-tests--project-report-wrapper ()
   "Test project-report wrapper calls underlying function."
   (let (called)
     (cl-letf (((symbol-function 'testcover-audit-report--project-report)
@@ -121,6 +121,6 @@
       (testcover-audit-project-report)
       (should called))))
 
-(provide 'testcover-audit-main-test)
+(provide 'main-tests)
 
-;;; testcover-audit-main-test.el ends here
+;;; main-tests.el ends here

@@ -80,6 +80,11 @@
 ;;       (plist-put p/config :coverage
 ;;                  '(:directories ("lisp" "."))))
 
+;; Test-only packages come from MELPA, never from `Package-Requires'; each
+;; name is also the feature the test modules require.
+;; (setq p/config
+;;       (plist-put p/config :test-packages '(ert-gwt)))
+
 (provide 'ci)
 
 ;;; ci.el ends here

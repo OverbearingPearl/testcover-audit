@@ -19,6 +19,7 @@ exec "$emacs_bin" -Q --batch \
   -l "$here/lib/project.el" \
   -l "$here/deps.el" \
   --eval "(p/ensure-package 'package-lint 'package-lint)" \
+  --eval '(p/ensure-test-packages)' \
   -l "$here/lib/report.el" \
   -l "$here/lib/registry.el" \
   --eval "(p/load-checks (expand-file-name \"checks\" \"$here\"))" \

@@ -9,6 +9,8 @@
 ;;; Commentary:
 
 ;; Customization group and user options for testcover-audit.
+;; The options cover report thresholds, output format, file selection, and the
+;; batch-report entry points; they are public API and keep the package prefix.
 
 ;;; Code:
 

@@ -1,0 +1,19 @@
+name: setup-emacs
+description: >-
+  Install the Emacs that apt ships, unless the runner already has one, and
+  print the version so the log says which Emacs ran.  The runner's Emacs is
+  the one CI tests against on purpose: a job that quietly picked a different
+  version would report on an Emacs nobody runs, and `emacs-version-minimum`
+  in the check suite is what turns "too old" into a precise message.
+
+runs:
+  using: composite
+  steps:
+    - name: install emacs
+      shell: bash
+      run: |
+        if ! command -v emacs >/dev/null 2>&1; then
+          sudo apt-get update
+          sudo apt-get install -y emacs
+        fi
+        emacs --version | head -1

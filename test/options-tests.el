@@ -1,4 +1,4 @@
-;;; testcover-audit-options-test.el --- Tests for testcover-audit-options -*- lexical-binding: t; -*-
+;;; options-tests.el --- Tests for testcover-audit-options -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
@@ -9,7 +9,7 @@
 (require 'ert)
 (require 'testcover-audit-options)
 
-(ert-deftest testcover-audit-options-test--defaults ()
+(ert-deftest options-tests--defaults ()
   "Test that default options are meaningful."
   (should (>= testcover-audit-green-threshold 0))
   (should (>= testcover-audit-yellow-threshold 0))
@@ -17,6 +17,6 @@
   (should (integerp testcover-audit-ci-threshold))
   (should (listp testcover-audit-exclude-files)))
 
-(provide 'testcover-audit-options-test)
+(provide 'options-tests)
 
-;;; testcover-audit-options-test.el ends here
+;;; options-tests.el ends here

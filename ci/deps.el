@@ -8,10 +8,23 @@
 ;; not download package-lint.  The user's existing ELPA directory is preferred;
 ;; otherwise the package goes into a project-local cache (needs network exactly
 ;; once, then fully offline).
+;;
+;; A project's tests may also need a package of their own, named in
+;; `:test-packages'.  Those are test-only, so they are taken from the project
+;; cache even when the user has one: a stale global copy must not decide what
+;; the suite compiles against, and an old macro can fail the lint on a newer
+;; Emacs while the CI's fresh copy passes.
 
 ;;; Code:
 
 (require 'package)
+(require 'seq)
+
+(defconst p/suite-dependencies '(package-lint testcover-audit)
+  "Packages the suite installs for itself.
+`package-lint' runs the checks and `testcover-audit' measures coverage.  A
+project that is one of them cannot keep its name out of `ci/': the tree has
+to name the dependency, so `project-neutral' does not run for it.")
 
 (defun p/require-feature (feature)
   "Load FEATURE, returning non-nil on success."
@@ -41,6 +54,37 @@ names a different cache, which is what a CI job wants when it caches a path."
         (package-refresh-contents)
         (package-install package))
       (require feature))))
+
+(defun p/ensure-test-packages ()
+  "Install and load the packages the project lists in :test-packages.
+Each name is both the package and the feature to require.  They come from
+the project cache even when `~/.emacs.d/elpa' has a copy: a test dependency
+that decided what the suite compiles against would be whichever version the
+machine happened to install first.  Nothing to do when the list is nil."
+  (let ((packages (p/config-value :test-packages)))
+    (when packages
+      (setq package-user-dir
+            (or (getenv "P_ELPA_DIR")
+                (expand-file-name ".cache/elpa" (p/repo-root))))
+      (setq package-archives
+            '(("gnu" . "https://elpa.gnu.org/packages/")
+              ("melpa" . "https://melpa.org/packages/")))
+      (setq package-check-signature nil)
+      (unless (file-directory-p package-user-dir)
+        (make-directory package-user-dir t))
+      (package-initialize)
+      ;; `package-initialize' activates the cache's packages, but a copy the
+      ;; user's ELPA put on `load-path' earlier stays ahead of it.  Put the
+      ;; cache first, then install whatever is still missing.
+      (setq load-path
+            (append (seq-filter #'file-directory-p
+                                (directory-files package-user-dir t "\\`[^.]"))
+                    load-path))
+      (dolist (package packages)
+        (unless (package-installed-p package)
+          (package-refresh-contents)
+          (package-install package))
+        (require package)))))
 
 (provide 'deps)
 

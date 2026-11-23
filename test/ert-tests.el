@@ -1,4 +1,4 @@
-;;; testcover-audit-ert-test.el --- Tests for testcover-audit-ert -*- lexical-binding: t; -*-
+;;; ert-tests.el --- Tests for testcover-audit-ert -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
@@ -9,7 +9,7 @@
 (require 'ert)
 (require 'testcover-audit-ert)
 
-(ert-deftest testcover-audit-ert-test--hook ()
+(ert-deftest ert-tests--hook ()
   "Test the package hook runs when the ERT hook callback is invoked."
   (let (called)
     (let ((testcover-audit-ert-after-run-hook
@@ -17,14 +17,14 @@
       (testcover-audit-ert--after-run)
       (should called))))
 
-(ert-deftest testcover-audit-ert-test--mode ()
+(ert-deftest ert-tests--mode ()
   "Test that ERT mode toggles the coverage advice correctly."
   (testcover-audit-ert-mode 1)
   (should (advice-member-p #'testcover-audit-ert--after-run 'ert-run-tests-batch))
   (testcover-audit-ert-mode -1)
   (should-not (advice-member-p #'testcover-audit-ert--after-run 'ert-run-tests-batch)))
 
-(ert-deftest testcover-audit-ert-test--after-run-no-auto-show ()
+(ert-deftest ert-tests--after-run-no-auto-show ()
   "After-run runs hooks but skips scan/report when auto-show is nil."
   (let ((scan-called nil)
         (report-called nil))
@@ -38,7 +38,7 @@
       (should-not scan-called)
       (should-not report-called))))
 
-(ert-deftest testcover-audit-ert-test--after-run-auto-show-no-scan-dir ()
+(ert-deftest ert-tests--after-run-auto-show-no-scan-dir ()
   "After-run runs report but skips scan when scan-directory is nil."
   (let ((scan-called nil)
         (report-called nil))
@@ -52,7 +52,7 @@
       (should-not scan-called)
       (should report-called))))
 
-(ert-deftest testcover-audit-ert-test--after-run-auto-show-with-scan-dir ()
+(ert-deftest ert-tests--after-run-auto-show-with-scan-dir ()
   "After-run runs both scan and report when auto-show and scan-directory are set."
   (let ((scan-called nil)
         (report-called nil))
@@ -66,6 +66,6 @@
       (should scan-called)
       (should report-called))))
 
-(provide 'testcover-audit-ert-test)
+(provide 'ert-tests)
 
-;;; testcover-audit-ert-test.el ends here
+;;; ert-tests.el ends here

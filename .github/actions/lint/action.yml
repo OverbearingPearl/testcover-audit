@@ -1,0 +1,19 @@
+name: lint
+description: Run the check suite (lint, identical to the local hook).
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-emacs
+
+    - uses: actions/cache@v4
+      with:
+        path: .cache/elpa
+        key: elpa-${{ runner.os }}-${{ hashFiles('ci/deps.el') }}
+
+    - name: lint
+      shell: bash
+      run: |
+        mkdir -p build
+        set -o pipefail
+        make lint 2>&1 | tee -a build/lint.log

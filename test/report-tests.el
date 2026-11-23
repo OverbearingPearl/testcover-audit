@@ -1,4 +1,4 @@
-;;; testcover-audit-report-test.el --- Tests for testcover-audit-report -*- lexical-binding: t; -*-
+;;; report-tests.el --- Tests for testcover-audit-report -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
@@ -10,14 +10,14 @@
 (require 'cl-lib)
 (require 'edebug)
 (require 'testcover-audit-report)
-(require 'testcover-audit-util-test)
+(require 'util-tests)
 
-(defun testcover-audit-report-test--kill-report-buffer (name)
+(defun report-tests--kill-report-buffer (name)
   "Kill report buffer NAME if it is live."
   (when (buffer-live-p (get-buffer name))
     (kill-buffer name)))
 
-(ert-deftest testcover-audit-report-test--face-for-percent ()
+(ert-deftest report-tests--face-for-percent ()
   "Test color threshold face selection."
   (let ((testcover-audit-green-threshold 80)
         (testcover-audit-yellow-threshold 50))
@@ -25,7 +25,7 @@
     (should (eq (testcover-audit-report--face-for-percent 60) 'warning))
     (should (eq (testcover-audit-report--face-for-percent 10) 'error))))
 
-(ert-deftest testcover-audit-report-test--batch-aggregates ()
+(ert-deftest report-tests--batch-aggregates ()
   "Test batch reporting converts vectors to stats before aggregation."
   (let ((testcover-audit-core--loaded-files
          (list (cons (file-truename (expand-file-name "a.el"))
@@ -34,7 +34,7 @@
                (cons (file-truename (expand-file-name "b.el"))
                      (list (cons 'b-function [edebug-unknown edebug-unknown
                                               testcover-1value testcover-1value]))))))
-    (testcover-audit-util-test--install-baselines
+    (util-tests--install-baselines
      testcover-audit-core--loaded-files)
     (unwind-protect
         (progn
@@ -42,10 +42,10 @@
             (testcover-audit-report--batch-report))
           (with-current-buffer "*Testcover Batch Report*"
             (should (string-match-p "63" (buffer-string)))))
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Batch Report*"))))
 
-(ert-deftest testcover-audit-report-test--show-stats-no-data ()
+(ert-deftest report-tests--show-stats-no-data ()
   "Message when no collected data exists."
   (let ((buf (generate-new-buffer "*tca-msg-test*")))
     (unwind-protect
@@ -58,7 +58,7 @@
             (should (string-match-p "No coverage data" (car messages)))))
       (kill-buffer buf))))
 
-(ert-deftest testcover-audit-report-test--stats-for-file ()
+(ert-deftest report-tests--stats-for-file ()
   "Helper returns nil when no data is collected."
   (let ((buf (generate-new-buffer "*tca-stats-file*")))
     (unwind-protect
@@ -67,7 +67,7 @@
           (should (null (testcover-audit-report--stats-for-file "no-such-file.el"))))
       (kill-buffer buf))))
 
-(ert-deftest testcover-audit-report-test--show-stats-with-coverage ()
+(ert-deftest report-tests--show-stats-with-coverage ()
   "Message shows coverage from the collected function snapshot."
   (let* ((file (make-temp-file "tca-msg-cov" nil ".el"))
          (buf (find-file-noselect file)))
@@ -79,7 +79,7 @@
                                                                   edebug-ok-coverage
                                                                   edebug-ok-coverage])))))
                 (messages nil))
-            (testcover-audit-util-test--install-baselines
+            (util-tests--install-baselines
              testcover-audit-core--loaded-files)
             (cl-letf (((symbol-function 'message)
                        (lambda (format-string &rest args)
@@ -88,7 +88,7 @@
             (should (equal messages '("Coverage: 75% (2/4)")))))
       (kill-buffer buf))))
 
-(ert-deftest testcover-audit-report-test--show-all-stats-with-data ()
+(ert-deftest report-tests--show-all-stats-with-data ()
   "Test show-all-stats displays buffer with coverage percentage."
   (let* ((file (make-temp-file "tca-show-all" nil ".el"))
          (buf (find-file-noselect file)))
@@ -100,7 +100,7 @@
                                                             edebug-ok-coverage
                                                             edebug-ok-coverage])))))
                 (_display-buffer-called nil))
-            (testcover-audit-util-test--install-baselines
+            (util-tests--install-baselines
              testcover-audit-core--loaded-files)
             (testcover-audit-report--show-all-stats)
             (should (eq (current-buffer)
@@ -110,11 +110,11 @@
               (should (string-match-p "Function-level breakdown" (buffer-string)))
               (should (string-match-p "75" (buffer-string))))))
       (kill-buffer buf)
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Audit Report*")
       (delete-file file))))
 
-(ert-deftest testcover-audit-report-test--show-function-stats-line-level ()
+(ert-deftest report-tests--show-function-stats-line-level ()
   "Show-function-stats shows line breakdown with live position data."
   (let* ((file (make-temp-file "tca-line-report" nil ".el"))
          (symbol (make-symbol "tca-line-report-fn"))
@@ -137,7 +137,7 @@
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
           (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
-          (testcover-audit-util-test--install-symbol-baseline
+          (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (let ((testcover-audit-core--loaded-files nil))
             (testcover-audit-report--show-function-stats))
@@ -156,11 +156,11 @@
         (with-current-buffer buf
           (set-buffer-modified-p nil))
         (kill-buffer buf))
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Function Report*")
       (delete-file file))))
 
-(ert-deftest testcover-audit-report-test--show-function-stats-mixed ()
+(ert-deftest report-tests--show-function-stats-mixed ()
   "Test show-function-stats lists functions with varying coverage."
   (let* ((file (make-temp-file "tca-func-stats" nil ".el"))
          (buf (find-file-noselect file)))
@@ -171,7 +171,7 @@
                              (list (cons 'good-fn [edebug-ok-coverage edebug-ok-coverage])
                                    (cons 'bad-fn [edebug-unknown edebug-unknown])))))
                 (_display-buffer-called nil))
-            (testcover-audit-util-test--install-baselines
+            (util-tests--install-baselines
              testcover-audit-core--loaded-files)
             (testcover-audit-report--show-function-stats)
             (should (eq (current-buffer)
@@ -181,17 +181,17 @@
               (should (string-match-p "bad-fn" (buffer-string)))
               (should (string-match-p "0%" (buffer-string))))))
       (kill-buffer buf)
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Function Report*")
       (delete-file file))))
 
-(ert-deftest testcover-audit-report-test--batch-report-with-low-funcs ()
+(ert-deftest report-tests--batch-report-with-low-funcs ()
   "Test batch-report includes function-level breakdown for low coverage."
   (let ((testcover-audit-core--loaded-files
          (list (cons (file-truename (expand-file-name "a.el" temporary-file-directory))
                      (list (cons 'high-fn [edebug-ok-coverage edebug-ok-coverage])
                            (cons 'low-fn [edebug-unknown edebug-unknown]))))))
-    (testcover-audit-util-test--install-baselines
+    (util-tests--install-baselines
      testcover-audit-core--loaded-files)
     (unwind-protect
         (progn
@@ -200,10 +200,10 @@
           (with-current-buffer "*Testcover Batch Report*"
             (should (string-match-p "Function-level breakdown" (buffer-string)))
             (should (string-match-p "low-fn" (buffer-string)))))
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Batch Report*"))))
 
-(ert-deftest testcover-audit-report-test--batch-report-no-data-msg ()
+(ert-deftest report-tests--batch-report-no-data-msg ()
   "Test batch-report shows message when no data is collected."
   (let ((testcover-audit-core--loaded-files nil)
         (msg-captured nil))
@@ -213,7 +213,7 @@
       (testcover-audit-report--batch-report))
     (should (seq-some (lambda (m) (string-match-p "No coverage data collected" m)) msg-captured))))
 
-(ert-deftest testcover-audit-report-test--stats-for-file-live ()
+(ert-deftest report-tests--stats-for-file-live ()
   "Stats-for-file prefers live buffer data over the scan snapshot."
   (let* ((file (make-temp-file "tca-live-stats" nil ".el"))
          (symbol (make-symbol "tca-live-stats-fn"))
@@ -229,7 +229,7 @@
           (put symbol 'edebug-coverage
                [edebug-ok-coverage edebug-ok-coverage edebug-ok-coverage])
           (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
-          (testcover-audit-util-test--install-symbol-baseline
+          (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           ;; Stale snapshot must not shadow live data.
           (let ((testcover-audit-core--loaded-files
@@ -241,11 +241,11 @@
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
       (when (buffer-live-p buf) (kill-buffer buf))
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Audit Report*")
       (delete-file file))))
 
-(ert-deftest testcover-audit-report-test--show-all-stats-live ()
+(ert-deftest report-tests--show-all-stats-live ()
   "Show-all-stats works from live buffer data without a scan snapshot."
   (let* ((file (make-temp-file "tca-live-all" nil ".el"))
          (symbol (make-symbol "tca-live-all-fn"))
@@ -263,7 +263,7 @@
                [edebug-unknown testcover-1value
                 edebug-ok-coverage edebug-ok-coverage])
           (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
-          (testcover-audit-util-test--install-symbol-baseline
+          (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (let ((testcover-audit-core--loaded-files nil))
             (testcover-audit-report--show-all-stats))
@@ -275,11 +275,11 @@
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
       (when (buffer-live-p buf) (kill-buffer buf))
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Function Report*")
       (delete-file file))))
 
-(ert-deftest testcover-audit-report-test--show-function-stats-live ()
+(ert-deftest report-tests--show-function-stats-live ()
   "Show-function-stats lists live functions without a scan snapshot."
   (let* ((file (make-temp-file "tca-live-fn" nil ".el"))
          (symbol (make-symbol "tca-live-fn"))
@@ -296,7 +296,7 @@
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-unknown edebug-unknown])
           (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
-          (testcover-audit-util-test--install-symbol-baseline
+          (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (let ((testcover-audit-core--loaded-files nil))
             (testcover-audit-report--show-function-stats))
@@ -308,11 +308,11 @@
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
       (when (buffer-live-p buf) (kill-buffer buf))
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Function Report*")
       (delete-file file))))
 
-(ert-deftest testcover-audit-report-test--show-all-stats-no-line-level ()
+(ert-deftest report-tests--show-all-stats-no-line-level ()
   "Show-all-stats skips line-level breakdown even with position data."
   (let* ((file (make-temp-file "tca-all-no-line" nil ".el"))
          (symbol (make-symbol "tca-all-no-line-fn"))
@@ -334,7 +334,7 @@
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
           (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
-          (testcover-audit-util-test--install-symbol-baseline
+          (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (let ((testcover-audit-core--loaded-files nil))
             (testcover-audit-report--show-all-stats))
@@ -350,11 +350,11 @@
         (with-current-buffer buf
           (set-buffer-modified-p nil))
         (kill-buffer buf))
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Audit Report*")
       (delete-file file))))
 
-(ert-deftest testcover-audit-report-test--format-list ()
+(ert-deftest report-tests--format-list ()
   "Test list format rendering when `testcover-audit-report-format' is list."
   (with-temp-buffer
     (let ((testcover-audit-report-format 'list))
@@ -365,7 +365,7 @@
     (should (string-match-p "Total: 4" (buffer-string)))
     (should (string-match-p "Coverage: 75%" (buffer-string)))))
 
-(ert-deftest testcover-audit-report-test--batch-report-low-coverage-threshold ()
+(ert-deftest report-tests--batch-report-low-coverage-threshold ()
   "Test batch-report honors `testcover-audit-low-coverage-threshold'."
   (let* ((file (file-truename (expand-file-name "a.el" temporary-file-directory)))
          (testcover-audit-core--loaded-files
@@ -375,7 +375,7 @@
                             (cons 'partial-fn [edebug-unknown edebug-ok-coverage
                                                edebug-ok-coverage])))))
          (testcover-audit-low-coverage-threshold 90))
-    (testcover-audit-util-test--install-baselines
+    (util-tests--install-baselines
      testcover-audit-core--loaded-files)
     (unwind-protect
         (progn
@@ -385,17 +385,17 @@
             (should (string-match-p "partial-fn" (buffer-string)))
             (should-not (string-match-p "ok-fn" (buffer-string)))
             (should (string-match-p "Uncovered" (buffer-string)))))
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Batch Report*"))))
 
-(ert-deftest testcover-audit-report-test--navigation-map ()
+(ert-deftest report-tests--navigation-map ()
   "Report buffers use the navigation keymap with j/k/n/p bindings."
   (let ((testcover-audit-core--loaded-files
          (list (cons (file-truename
                       (expand-file-name "a.el" temporary-file-directory))
                      (list (cons 'fn [edebug-unknown edebug-unknown])))))
         (_display-buffer-called nil))
-    (testcover-audit-util-test--install-baselines
+    (util-tests--install-baselines
      testcover-audit-core--loaded-files)
     (unwind-protect
         (progn
@@ -409,10 +409,10 @@
             (should (eq (lookup-key (current-local-map) (kbd "k")) #'previous-line))
             (should (eq (lookup-key (current-local-map) (kbd "n")) #'next-line))
             (should (eq (lookup-key (current-local-map) (kbd "p")) #'previous-line)))))
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Batch Report*")))
 
-(ert-deftest testcover-audit-report-test--function-report-navigation-map ()
+(ert-deftest report-tests--function-report-navigation-map ()
   "Function report buffer uses the navigation keymap."
   (let* ((file (make-temp-file "tca-fn-nav-map" nil ".el"))
          (buf (find-file-noselect file))
@@ -422,7 +422,7 @@
           (let ((testcover-audit-core--loaded-files
                  (list (cons (file-truename file)
                              (list (cons 'fn [edebug-unknown edebug-unknown]))))))
-            (testcover-audit-util-test--install-baselines
+            (util-tests--install-baselines
              testcover-audit-core--loaded-files)
             (testcover-audit-report--show-function-stats))
           (should (eq (current-buffer)
@@ -431,11 +431,11 @@
             (should (eq (current-local-map)
                         testcover-audit-report--navigation-map))))
       (kill-buffer buf)
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Function Report*")
       (delete-file file))))
 
-(ert-deftest testcover-audit-report-test--row-navigation-properties ()
+(ert-deftest report-tests--row-navigation-properties ()
   "Insert-table adds navigation properties when row-props-fn is provided."
   (with-temp-buffer
     (testcover-audit-report--insert-table
@@ -451,7 +451,7 @@
     (should (string= (get-text-property (point) 'testcover-audit-report-file)
                      "/tmp/a.el"))))
 
-(ert-deftest testcover-audit-report-test--row-navigation-mouse-bindings ()
+(ert-deftest report-tests--row-navigation-mouse-bindings ()
   "Report row keymaps activate their targets with the mouse."
   (should (eq (lookup-key testcover-audit-report--file-stats-keymap
                           [mouse-2])
@@ -460,13 +460,13 @@
                           [mouse-2])
               #'testcover-audit-report--goto-function-stats-command)))
 
-(ert-deftest testcover-audit-report-test--batch-report-row-navigation ()
+(ert-deftest report-tests--batch-report-row-navigation ()
   "Batch report binds file rows and function rows for navigation."
   (let ((testcover-audit-core--loaded-files
          (list (cons (file-truename (expand-file-name "a.el" temporary-file-directory))
                      (list (cons 'high-fn [edebug-ok-coverage edebug-ok-coverage])
                            (cons 'low-fn [edebug-unknown edebug-unknown]))))))
-    (testcover-audit-util-test--install-baselines
+    (util-tests--install-baselines
      testcover-audit-core--loaded-files)
     (unwind-protect
         (progn
@@ -493,10 +493,10 @@
                           testcover-audit-report--function-stats-keymap))
               (should (string= (get-text-property (point) 'testcover-audit-report-function)
                                "low-fn"))))))
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Batch Report*")))
 
-(ert-deftest testcover-audit-report-test--goto-file-stats ()
+(ert-deftest report-tests--goto-file-stats ()
   "Goto-file-stats calls show-all-stats with the associated file."
   (let (called)
     (cl-letf (((symbol-function 'testcover-audit-report--show-all-stats)
@@ -509,7 +509,7 @@
         (testcover-audit-report--goto-file-stats)
         (should (string= called "/tmp/a.el"))))))
 
-(ert-deftest testcover-audit-report-test--goto-function-stats ()
+(ert-deftest report-tests--goto-function-stats ()
   "Goto-function-stats calls show-function-stats with file and function."
   (let (called-file called-function)
     (cl-letf (((symbol-function 'testcover-audit-report--show-function-stats)
@@ -527,7 +527,7 @@
         (should (string= called-file "/tmp/a.el"))
         (should (string= called-function "low-fn"))))))
 
-(ert-deftest testcover-audit-report-test--show-function-stats-with-function ()
+(ert-deftest report-tests--show-function-stats-with-function ()
   "Show-function-stats moves point to the requested function."
   (let* ((file (make-temp-file "tca-nav-fn" nil ".el"))
          (symbol (make-symbol "tca-nav-target"))
@@ -543,7 +543,7 @@
           (put symbol 'edebug-coverage
                [edebug-unknown edebug-unknown edebug-unknown])
           (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
-          (testcover-audit-util-test--install-symbol-baseline
+          (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (cl-letf (((symbol-function 'display-buffer) (lambda (&rest _) nil)))
             (testcover-audit-report--show-function-stats file "tca-nav-target"))
@@ -552,11 +552,11 @@
       (cl-remprop symbol 'edebug-behavior)
       (cl-remprop symbol 'edebug-coverage)
       (when (buffer-live-p buf) (kill-buffer buf))
-      (testcover-audit-report-test--kill-report-buffer
+      (report-tests--kill-report-buffer
        "*Testcover Function Report*")
       (delete-file file))))
 
-(ert-deftest testcover-audit-report-test--project-report ()
+(ert-deftest report-tests--project-report ()
   "Project-report scans root and generates batch report."
   (let* ((dir (make-temp-file "tca-proj" t))
          (git-dir (expand-file-name ".git" dir)))
@@ -575,6 +575,6 @@
             (should report-called)))
       (delete-directory dir t))))
 
-(provide 'testcover-audit-report-test)
+(provide 'report-tests)
 
-;;; testcover-audit-report-test.el ends here
+;;; report-tests.el ends here

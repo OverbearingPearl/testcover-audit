@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      melpazoid:
+        description: >-
+          Also run melpazoid. Takes about half an hour: it builds a container
+          whose base compiles Emacs from source.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/lint
+      - if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          stage: lint
+          smtp-host: ${{ secrets.SMTP_HOST }}
+          smtp-port: ${{ secrets.SMTP_PORT }}
+          smtp-user: ${{ secrets.SMTP_USER }}
+          smtp-pass: ${{ secrets.SMTP_PASS }}
+          to: ${{ secrets.NOTIFY_EMAIL }}
+
+  # Runs on the Emacs shipped by ubuntu-latest. The configured minimum
+  # in ci/config.el is enforced by the emacs-version-minimum check, so a
+  # runner that is too old fails with a precise message instead of
+  # silently testing a different version than the package claims.
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/test
+      - if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          stage: test
+          smtp-host: ${{ secrets.SMTP_HOST }}
+          smtp-port: ${{ secrets.SMTP_PORT }}
+          smtp-user: ${{ secrets.SMTP_USER }}
+          smtp-pass: ${{ secrets.SMTP_PASS }}
+          to: ${{ secrets.NOTIFY_EMAIL }}
+
+  # Report only.  The numbers are worth seeing in a review, and they are not
+  # worth failing a pull request over on a shared runner: the budgets are
+  # guarded strictly by the nightly run instead, where a stray red mark costs
+  # nobody a merge.
+  perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/perf
+        with:
+          report: 'true'
+
+  # Report only, for a stronger reason than the job above: size has no budget
+  # to enforce, so the table is the whole answer and there is nothing for the
+  # nightly run to fail into.  A green run means the report was produced, not
+  # that it was good.
+  size:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/size
+
+  # Report only, like size: instrumentation changes what the code does, so a
+  # suite with timing assertions can be red here and green in the test job
+  # above. Coverage is the number this job produces, not the verdict it
+  # enforces; the artifact is the point.
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/coverage
+
+  # Manual only, and the reason is the shape of melpazoid's cost.  It builds
+  # a container whose base compiles Emacs from source (tens of minutes), then
+  # runs checkdoc, package-lint and byte-compile inside it -- the same three
+  # checks `make lint` already runs on the runner's Emacs.  What it adds on
+  # top is MELPA's own checklist and recipe build, which is worth reading
+  # once before a MELPA pull request or a release, not on every push.  The
+  # job used to be blocking on every event; it never finished, because any
+  # push inside the compile cancels it.
+  melpazoid:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.melpazoid == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      # exist-ok is left at its default, `auto`: melpazoid's name-collision
+      # check turns itself off once melpa/melpa has the recipe, so merging
+      # the MELPA pull request needs no change here.
+      - uses: ./.github/actions/melpazoid
+        with:
+          repository: ${{ github.repository }}
+      - if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          stage: melpazoid
+          smtp-host: ${{ secrets.SMTP_HOST }}
+          smtp-port: ${{ secrets.SMTP_PORT }}
+          smtp-user: ${{ secrets.SMTP_USER }}
+          smtp-pass: ${{ secrets.SMTP_PASS }}
+          to: ${{ secrets.NOTIFY_EMAIL }}

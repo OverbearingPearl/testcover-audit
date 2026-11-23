@@ -176,6 +176,7 @@ set is not a number anybody should read."
           (princ "coverage: no test modules found; skipping\n")
           0)
       (p/ensure-package 'testcover-audit 'testcover-audit)
+      (p/ensure-test-packages)
       (p/coverage-add-load-path)
       (let ((failed (p/coverage-instrument (p/coverage-source-files))))
         (if failed

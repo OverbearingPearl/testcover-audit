@@ -1,4 +1,4 @@
-;;; testcover-audit-scan-test.el --- Tests for testcover-audit-scan -*- lexical-binding: t; -*-
+;;; scan-tests.el --- Tests for testcover-audit-scan -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
@@ -10,9 +10,9 @@
 (require 'seq)
 (require 'edebug)
 (require 'testcover-audit-scan)
-(require 'testcover-audit-util-test)
+(require 'util-tests)
 
-(ert-deftest testcover-audit-scan-test--collects-coverage ()
+(ert-deftest scan-tests--collects-coverage ()
   "Scan-directory collects vectors from testcover-instrumented definitions."
   (let* ((dir (make-temp-file "tca-scan-collect" t))
          (file (expand-file-name "foo.el" dir))
@@ -32,7 +32,7 @@
                  [edebug-unknown testcover-1value
                   edebug-ok-coverage edebug-ok-coverage])
             (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
-            (testcover-audit-util-test--install-symbol-baseline
+            (util-tests--install-symbol-baseline
              symbol (get symbol 'edebug-coverage))
             (let ((testcover-audit-exclude-files nil))
               (testcover-audit-scan--scan-directory dir))
@@ -46,7 +46,7 @@
         (kill-buffer buf)
         (delete-directory dir t)))))
 
-(ert-deftest testcover-audit-scan-test--does-not-instrument ()
+(ert-deftest scan-tests--does-not-instrument ()
   "Scan-directory does not instrument files lacking coverage."
   (let* ((dir (make-temp-file "tca-scan-no-instrument" t))
          (file (expand-file-name "bar.el" dir))
@@ -64,7 +64,7 @@
         (kill-buffer buf)
         (delete-directory dir t)))))
 
-(ert-deftest testcover-audit-scan-test--reports-skipped-files ()
+(ert-deftest scan-tests--reports-skipped-files ()
   "Scan reports files skipped because they have no visiting buffer."
   (let* ((dir (make-temp-file "tca-scan-debug" t))
          (file (expand-file-name "missing-buffer.el" dir))
@@ -85,7 +85,7 @@
             messages)))
       (delete-directory dir t))))
 
-(ert-deftest testcover-audit-scan-test--definition-line-stats ()
+(ert-deftest scan-tests--definition-line-stats ()
   "Definition-line-stats groups coverage by source line."
   (let* ((dir (make-temp-file "tca-line" t))
          (file (expand-file-name "foo.el" dir))
@@ -109,7 +109,7 @@
             (put symbol 'edebug-coverage
                  [edebug-unknown edebug-ok-coverage edebug-ok-coverage])
             (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
-            (testcover-audit-util-test--install-symbol-baseline
+            (util-tests--install-symbol-baseline
              symbol (get symbol 'edebug-coverage))
             (let ((line-stats (testcover-audit-scan--definition-line-stats
                                symbol
@@ -127,11 +127,11 @@
       (when (buffer-live-p buf) (kill-buffer buf))
       (delete-directory dir t))))
 
-(ert-deftest testcover-audit-scan-test--coverage-vector-p ()
+(ert-deftest scan-tests--coverage-vector-p ()
   (should
    (testcover-audit-scan--coverage-vector-p
     (vector 'edebug-unknown
-            testcover-audit-util-test--1value
+            util-tests--1value
             'edebug-ok-coverage
             'noreturn)))
   (should (testcover-audit-scan--coverage-vector-p [0 1 2 3]))
@@ -141,7 +141,7 @@
             '(noreturn . 12) nil)))
   (should-not (testcover-audit-scan--coverage-vector-p [])))
 
-(ert-deftest testcover-audit-scan-test--ignores-non-testcover-edebug ()
+(ert-deftest scan-tests--ignores-non-testcover-edebug ()
   "Scan ignores Edebug coverage not owned by testcover."
   (let* ((dir (make-temp-file "tca-scan-non-testcover" t))
          (file (expand-file-name "fixture.el" dir))
@@ -170,7 +170,7 @@
         (kill-buffer buf))
       (delete-directory dir t))))
 
-(ert-deftest testcover-audit-scan-test--buffer-function-stats-live ()
+(ert-deftest scan-tests--buffer-function-stats-live ()
   "Buffer-function-stats reads live coverage without touching loaded-files."
   (let* ((dir (make-temp-file "tca-scan-live-fn" t))
          (file (expand-file-name "foo.el" dir))
@@ -191,7 +191,7 @@
                [edebug-unknown testcover-1value
                 edebug-ok-coverage edebug-ok-coverage])
           (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
-          (testcover-audit-util-test--install-symbol-baseline
+          (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (let ((rows (testcover-audit-scan--buffer-function-stats file)))
             (should (= (length rows) 1))
@@ -206,7 +206,7 @@
         (kill-buffer buf))
       (delete-directory dir t))))
 
-(ert-deftest testcover-audit-scan-test--buffer-stats-live ()
+(ert-deftest scan-tests--buffer-stats-live ()
   "Buffer-stats aggregates live coverage from the visiting buffer."
   (let* ((dir (make-temp-file "tca-scan-live-stats" t))
          (file (expand-file-name "foo.el" dir))
@@ -227,7 +227,7 @@
                [edebug-unknown testcover-1value
                 edebug-ok-coverage edebug-ok-coverage])
           (setq testcover-audit-core--initial-vectors (make-hash-table :test 'eq))
-          (testcover-audit-util-test--install-symbol-baseline
+          (util-tests--install-symbol-baseline
            symbol (get symbol 'edebug-coverage))
           (let ((stats (testcover-audit-scan--buffer-stats file)))
             (should stats)
@@ -242,7 +242,7 @@
         (kill-buffer buf))
       (delete-directory dir t))))
 
-(ert-deftest testcover-audit-scan-test--instrument-directory ()
+(ert-deftest scan-tests--instrument-directory ()
   "Instrument-directory instruments source files but skips test/excluded files."
   (require 'testcover)
   (let* ((dir (make-temp-file "tca-instr" t))
@@ -266,7 +266,7 @@
           (should-not (seq-some (lambda (c) (string-match-p "foo-test.el" c)) calls)))
       (delete-directory dir t))))
 
-(ert-deftest testcover-audit-scan-test--instrument-directory-adds-load-path ()
+(ert-deftest scan-tests--instrument-directory-adds-load-path ()
   "Instrument-directory adds each source directory to `load-path'."
   (require 'testcover)
   (let* ((dir (make-temp-file "tca-instr-loadpath" t))
@@ -291,6 +291,6 @@
                           seen-load-path)))
       (delete-directory dir t))))
 
-(provide 'testcover-audit-scan-test)
+(provide 'scan-tests)
 
-;;; testcover-audit-scan-test.el ends here
+;;; scan-tests.el ends here
