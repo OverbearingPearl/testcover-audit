@@ -32,6 +32,8 @@ What it writes, and what to do with each:
                             commit, tests before a push
   config/ci.el              the Emacs version this package claims; every other
                             knob of ci/config.el can be overridden there too
+  .pi/ai-git-commit.json    the prose half of the message rules -- why the
+                            change was made -- which no script reads
   .gitignore                compiler output, package caches, dist/ and CI
                             logs; written only when the project has none
   .github/                  lint, test, size, perf and coverage, plus a manual
@@ -150,6 +152,12 @@ cd "$root"
 
 write "Makefile" "$here/templates/Makefile"
 write "config/ci.el" "$here/templates/ci.el"
+
+# The message rules are two halves: the shape is check-commit-message.sh, the
+# prose is this file. The program that drafts a message reads it at the
+# repository root, so the copy the subtree brings along in ci/.pi/ reaches
+# nobody; it is the suite's own config, never the project's.
+write ".pi/ai-git-commit.json" "$here/templates/ai-git-commit.json"
 
 # A project's .gitignore usually predates ci and lists paths ci knows nothing
 # about.  Write the template only when there is none; never replace an existing
@@ -330,6 +338,11 @@ What you can change from here:
   config/perf.el    a benchmark of this package's own hot path (optional)
   config/size.el    a definition count of your own, for `make size' (optional)
   .github/          add jobs; a pull never touches it
+  .pi/ai-git-commit.json
+                    the prose half of the message rules: why the change was
+                    made, which the hook cannot check.  Rewrite it when this
+                    project's messages follow other rules, and edit the hook
+                    config to match
 
 Then keep working: the hooks run lint before a commit, the message checker
 before a commit is created, and the tests before a push.

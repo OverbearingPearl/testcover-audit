@@ -572,8 +572,17 @@ The message hook enforces a fixed shape, because the alternative was worse:
 once the hook reads its rules from configuration, changing one line means
 tracing a plist through an export script into shell. The shape is the one
 `ci/check-commit-message.sh` writes down -- capital subject, no type prefix,
-80/72 columns -- and the prose rules stay in the project's own file, here
+80/72 columns -- and the prose rules live beside it in the project's own
 `.pi/ai-git-commit.json`, which no script reads.
+
+That file is prose for whoever drafts the message: what was wrong, what was
+considered, why this shape. Bootstrap copies it from
+`ci/templates/ai-git-commit.json` and keeps it afterwards, on the same terms
+as the hook config. It has to sit at the repository root, because the program
+drafting the message reads it there and knows nothing about `ci/`; the copy
+the subtree brings along as `ci/.pi/ai-git-commit.json` is the suite's own
+config and nobody reads it. The suite's copy is a symlink to the template, so
+the wording here and the wording it hands out cannot drift.
 
 So a project whose messages follow different rules does one of two things,
 both of which the ownership rule above makes safe. It defines its own hooks,
@@ -612,9 +621,10 @@ all. It goes in `config/targets.mk`, which the template includes: a target
 declared there, and the line `lint: <target>`, wire it into `make lint`
 without editing the shared file. `help-extra` is the same for the help text.
 
-The rest is replaceable on purpose: `.pre-commit-config.yaml` and `.github/`
-are copies of ci's templates, and a project that edited them has decided to
-own that copy -- the `kept` message names the file and how far it differs.
+The rest is replaceable on purpose: `.pre-commit-config.yaml`, `.github/` and
+`.pi/ai-git-commit.json` are copies of ci's templates, and a project that
+edited them has decided to own that copy -- the `kept` message names the file
+and how far it differs.
 
 `--force` refuses to replace a file that has uncommitted changes, and says
 which command keeps a copy. Replacing it would leave the diff against `HEAD`

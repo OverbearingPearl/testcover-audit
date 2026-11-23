@@ -42,7 +42,13 @@ kept even under `--force`, because it usually lists paths ci knows nothing
 about; the template's `.cache/` and `build/` entries have to be added by hand
 to an older file.
 
-`ci/bootstrap.sh --help` is the whole usage, and it ends with the four things
+`.pi/ai-git-commit.json` carries the prose half of the message rules -- why the
+change was made, what was considered -- which the hook cannot check. It is
+written at the repository root because that is where the program drafting the
+message looks for it; the copy the subtree brings along in `ci/.pi/` is the
+suite's own and reaches nobody.
+
+`ci/bootstrap.sh --help` is the whole usage, and it ends with the things
 the project owns from then on.
 
 ## Update a project
@@ -76,6 +82,7 @@ project that has never customised those files.
 | a definition count for `make size` | `config/size.el` | no |
 | vendored packages | `vendor/` | no, the project's own |
 | workflows, actions, `Makefile`, `.gitignore`, hook config | `.github/`, root files | no, written once |
+| the prose half of the message rules | `.pi/ai-git-commit.json` | no, written once |
 
 Editing anything under `ci/` conflicts with the next pull. Everything else is
 yours.
