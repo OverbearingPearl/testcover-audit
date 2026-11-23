@@ -157,7 +157,12 @@
     ;; and a directory is walked recursively.  Test and vendored files are
     ;; never instrumented, whether or not they sit under a directory named
     ;; here, because coverage of the tests would only say the tests ran.
-    :coverage (:directories ("lisp" ".")))
+    :coverage (:directories ("lisp" "."))
+
+    ;; Test-only packages, installed into `.cache/elpa' before the test
+    ;; modules load.  Each name is also the feature to require; a runtime
+    ;; dependency belongs in the package's `Package-Requires' instead.
+    :test-packages nil)
   "Project-wide policy for the check suite.")
 
 (defun p/config-load-project ()

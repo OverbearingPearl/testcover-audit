@@ -43,6 +43,13 @@ tooling under `ci/` is exempt from `definition-prefix` for a related
 reason: it is shared code that must not name the package at all
 (`project-neutral`), so its definitions use the suite's own prefix.
 
+A project that is itself one of the suite's dependencies is the one case
+`project-neutral` cannot answer.  `ci/coverage.el` has to name
+testcover-audit and `ci/deps.el` has to name testcover-audit and
+package-lint, so the mention the rule forbids and the dependency the
+suite installs are the same string.  The check does not run for such a
+project, because no edit could make it pass.
+
 A business module needs a name after the prefix: `lisp/<pkg>-.el` and
 `lisp/<pkg>--name.el` both fail, because the module name would be empty or
 start with a dash.  Inside any module, `defcustom`, `defvar`, `defun`,
@@ -249,6 +256,28 @@ is zero, and a vendored module may only require another vendored one.
 That last rule is the one rule that reaches vendor, and it is the useful one:
 it keeps a vendored package from quietly depending on the host's modules,
 which is how a copy stops being replaceable.
+
+## Test dependencies
+
+A test may need a package the package itself does not: a testing macro, a
+fixture library.  Those are named in `:test-packages`, a list where each name
+is both the archive package and the feature to require.
+
+| key | default | what it decides |
+|---|---|---|
+| `:test-packages` | nil | packages the tests require, installed before ERT runs |
+
+`make test` installs them into the project cache before the test modules load,
+and `make lint` and `make coverage` do the same, so the compiler sees the
+macros the way the test run does.  The project cache is used even when the
+same package sits in the user's `~/.emacs.d/elpa`, because a stale global copy
+would decide what the suite compiles against; a test dependency that depended
+on who ran `make` first would make the CI's green meaningless.  Nothing here
+belongs in `Package-Requires`: a user of the package does not need a testing
+macro.
+
+The alternative is `vendor/`; prefer the published package when there is one,
+and vendor only what nobody publishes.
 
 ## Module layers
 
@@ -543,8 +572,17 @@ The message hook enforces a fixed shape, because the alternative was worse:
 once the hook reads its rules from configuration, changing one line means
 tracing a plist through an export script into shell. The shape is the one
 `ci/check-commit-message.sh` writes down -- capital subject, no type prefix,
-80/72 columns -- and the prose rules stay in the project's own file, here
+80/72 columns -- and the prose rules live beside it in the project's own
 `.pi/ai-git-commit.json`, which no script reads.
+
+That file is prose for whoever drafts the message: what was wrong, what was
+considered, why this shape. Bootstrap copies it from
+`ci/templates/ai-git-commit.json` and keeps it afterwards, on the same terms
+as the hook config. It has to sit at the repository root, because the program
+drafting the message reads it there and knows nothing about `ci/`; the copy
+the subtree brings along as `ci/.pi/ai-git-commit.json` is the suite's own
+config and nobody reads it. The suite's copy is a symlink to the template, so
+the wording here and the wording it hands out cannot drift.
 
 So a project whose messages follow different rules does one of two things,
 both of which the ownership rule above makes safe. It defines its own hooks,
@@ -583,9 +621,10 @@ all. It goes in `config/targets.mk`, which the template includes: a target
 declared there, and the line `lint: <target>`, wire it into `make lint`
 without editing the shared file. `help-extra` is the same for the help text.
 
-The rest is replaceable on purpose: `.pre-commit-config.yaml` and `.github/`
-are copies of ci's templates, and a project that edited them has decided to
-own that copy -- the `kept` message names the file and how far it differs.
+The rest is replaceable on purpose: `.pre-commit-config.yaml`, `.github/` and
+`.pi/ai-git-commit.json` are copies of ci's templates, and a project that
+edited them has decided to own that copy -- the `kept` message names the file
+and how far it differs.
 
 `--force` refuses to replace a file that has uncommitted changes, and says
 which command keeps a copy. Replacing it would leave the diff against `HEAD`

@@ -12,14 +12,20 @@ vendordir=$("$here/config-export.sh" vendor)
 
 cd "$root"
 
-# Load paths first, then the test modules: a vendored package keeps its own
-# name as a directory, so each one gets its own -L, exactly as the check suite
-# does for lint.
+# Load paths, then the packages the tests need, then the test modules: a
+# vendored package keeps its own name as a directory, so each one gets its own
+# -L, exactly as the check suite does for lint.
 set -- -L "$root" -L "$root/$submodule" -L "$root/$testdir" -L "$root/$vendordir"
 for dir in "$root/$vendordir"/*/; do
   [ -d "$dir" ] || continue
   set -- "$@" -L "${dir%/}"
 done
+set -- "$@" \
+  -l "$here/config.el" \
+  -l "$here/lib/util.el" \
+  -l "$here/lib/project.el" \
+  -l "$here/deps.el" \
+  --eval '(p/ensure-test-packages)'
 
 found=0
 for candidate in "$root/$testdir"/*.el; do
