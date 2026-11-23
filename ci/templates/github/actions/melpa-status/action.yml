@@ -1,0 +1,122 @@
+name: melpa-status
+description: >-
+  Ask MELPA whether this package has been accepted yet, and how often it has
+  been downloaded.  "Not yet on MELPA" is a state, not a failure: the normal
+  condition of a package before its pull request, and reporting it as an
+  error would paint a scheduled job red for weeks and teach everyone to
+  ignore it.
+
+inputs:
+  downloads:
+    description: >-
+      'true' (the default) also fetches the download count.  melpazoid only
+      needs to know whether the recipe exists, so it turns the extra request
+      and the summary off.
+    required: false
+    default: 'true'
+
+outputs:
+  package:
+    description: Package name, from ci/config-export.sh.
+    value: ${{ steps.probe.outputs.package }}
+  exists:
+    description: "'true' once the recipe is in melpa/melpa, otherwise 'false'."
+    value: ${{ steps.probe.outputs.exists }}
+  page:
+    description: The package's MELPA page, for linking from a mail.
+    value: ${{ steps.probe.outputs.page }}
+  recipe:
+    description: The recipe that publishes the package, in browsing form.
+    value: ${{ steps.probe.outputs.recipe }}
+  downloads:
+    description: >-
+      Download count from melpa.org.  Empty when the package is published but
+      nobody has downloaded it yet, which is the normal state on the day it
+      lands.
+    value: ${{ steps.downloads.outputs.count }}
+  report:
+    description: One-line summary, ready to use as a mail subject.
+    value: ${{ steps.report.outputs.line }}
+  time:
+    description: When the count was retrieved, UTC.
+    value: ${{ steps.report.outputs.time }}
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-emacs
+
+    # The recipe file is the earliest public signal that MELPA accepted the
+    # package: the pull request is merged, and the next build publishes it.
+    # melpa.org is later and noisier -- the archive lags, and a package with
+    # no downloads is missing from download_counts.json entirely, so that
+    # file answers "has anyone installed it", not "is it published".
+    #
+    # Only 404 means "not yet".  A 5xx, a timeout or a DNS failure is an
+    # error: turning those into "not published" would make a broken probe
+    # green.
+    - name: probe MELPA
+      id: probe
+      shell: bash
+      run: |
+        set -euo pipefail
+        package=$(ci/config-export.sh package)
+
+        # The URL of MELPA's recipe is written down once, here.  curl needs
+        # the raw host and a human clicking a link in a mail needs the blob
+        # page, so both forms are built from the same name and published as
+        # outputs -- no other file knows how MELPA lays out its repository.
+        raw="https://raw.githubusercontent.com/melpa/melpa/master/recipes/$package"
+        blob="https://github.com/melpa/melpa/blob/master/recipes/$package"
+        echo "package=$package" >> "$GITHUB_OUTPUT"
+        echo "page=https://melpa.org/#/$package" >> "$GITHUB_OUTPUT"
+        echo "recipe=$blob" >> "$GITHUB_OUTPUT"
+        echo "recipe: $raw"
+        if ! code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$raw")
+        then
+          code=000
+        fi
+        case "$code" in
+          200)
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$package is on MELPA" ;;
+          404)
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$package is not on MELPA yet; nothing to report" ;;
+          *)
+            echo "::error::probing MELPA for $package failed (http '$code')"
+            exit 1 ;;
+        esac
+
+    - name: download count
+      id: downloads
+      if: steps.probe.outputs.exists == 'true' && inputs.downloads == 'true'
+      shell: bash
+      env:
+        PACKAGE_NAME: ${{ steps.probe.outputs.package }}
+      run: |
+        set -euo pipefail
+        count=$(curl -fsS --max-time 30 https://melpa.org/download_counts.json \
+          | jq -r --arg p "$PACKAGE_NAME" '.[$p] // ""')
+        # A published package with no downloads is normal and is not an
+        # error. It is also not zero, which would be a claim we cannot make.
+        echo "count=$count" >> "$GITHUB_OUTPUT"
+
+    - name: report line
+      id: report
+      if: steps.probe.outputs.exists == 'true' && inputs.downloads == 'true'
+      shell: bash
+      env:
+        PACKAGE_NAME: ${{ steps.probe.outputs.package }}
+        COUNT: ${{ steps.downloads.outputs.count }}
+      run: |
+        set -euo pipefail
+        now=$(date -u +'%Y-%m-%d %H:%M UTC')
+        echo "time=$now" >> "$GITHUB_OUTPUT"
+        if [ -z "$COUNT" ]; then
+          echo "line=$PACKAGE_NAME is on MELPA with no downloads recorded yet ($now)" \
+            >> "$GITHUB_OUTPUT"
+        else
+          echo "line=$PACKAGE_NAME has $COUNT downloads on MELPA ($now)" \
+            >> "$GITHUB_OUTPUT"
+        fi

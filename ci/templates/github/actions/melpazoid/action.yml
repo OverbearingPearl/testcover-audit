@@ -1,0 +1,144 @@
+name: melpazoid
+description: >-
+  Run melpazoid's zero-tolerance MELPA review. Manual, not per-push: it
+  builds a container whose base compiles Emacs from source, which is half an
+  hour of a two-core runner.
+
+inputs:
+  repository:
+    description: GitHub repository in owner/name form.
+    required: true
+  exist-ok:
+    description: >-
+      Whether MELPA already has a package by this name. 'auto' (the default)
+      asks melpa/melpa for the recipe; 'true' and 'false' force the answer.
+      melpazoid's name-collision check asks whether the name is free, which
+      stops being a useful question the moment the answer is "no, because
+      that is this package": from then on it reports a clash with itself.
+    required: false
+    default: 'auto'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    # Almost all of this job's cost is inside `docker build`, so the docker
+    # version and the free disk are the first things to look at when it
+    # fails.  The rest is a clone: melpazoid is a review tool, not a
+    # dependency, so tracking its develop branch is the point.
+    - uses: ./.github/actions/setup-emacs
+
+    - name: install docker and melpazoid
+      shell: bash
+      run: |
+        set -euo pipefail
+        docker info --format 'docker {{.ServerVersion}} · {{.Driver}} · {{.NCPU}} cpu' || true
+        df -h / | tail -1
+        melpazoid="$RUNNER_TEMP/melpazoid"
+        rm -rf "$melpazoid"
+        git clone -q --depth 1 -b develop \
+          https://github.com/riscy/melpazoid.git "$melpazoid"
+        echo "melpazoid develop @ $(git -C "$melpazoid" rev-parse --short HEAD)"
+
+    # Whether the name is free is the question melpa-status already answers
+    # for the weekly report, so ask it instead of building the URL twice.
+    # The step is skipped for forced values, which need no request at all.
+    - id: melpa
+      if: inputs.exist-ok == 'auto'
+      uses: ./.github/actions/melpa-status
+      with:
+        downloads: 'false'
+
+    - name: run melpazoid (zero tolerance)
+      shell: bash
+      env:
+        LOCAL_REPO: ${{ github.workspace }}
+        WARN_IS_ERROR: 'true'
+        EXIST_OK_MODE: ${{ inputs.exist-ok }}
+        MELPA_EXISTS: ${{ steps.melpa.outputs.exists }}
+        REPOSITORY: ${{ inputs.repository }}
+        PYTHONUNBUFFERED: '1'
+      run: |
+        set -uo pipefail
+        melpazoid="$RUNNER_TEMP/melpazoid"
+        package=$(ci/config-export.sh package)
+        recipe="($package :fetcher github :repo \"$REPOSITORY\")"
+        mkdir -p build
+        log=build/melpazoid.log
+
+        # Upstream documents EXIST_OK as 1, not as "true", so the three
+        # spellings accepted on the way in are reduced to 1 or 0 here.  In
+        # auto mode the answer comes from the melpa-status step, which owns
+        # the one definition of "the recipe is merged".  An empty answer
+        # means that step did not run, which is a mistake worth failing on
+        # rather than reading as "not published".
+        case "$EXIST_OK_MODE" in
+          auto)
+            case "$MELPA_EXISTS" in
+              true)  exist_ok=1 ;;
+              false) exist_ok=0 ;;
+              *)
+                echo "::error::the MELPA probe reported no status ('$MELPA_EXISTS')"
+                exit 1
+                ;;
+            esac
+            ;;
+          true|1)  exist_ok=1 ;;
+          false|0) exist_ok=0 ;;
+          *)
+            echo "::error::exist-ok must be auto, true or false, not '$EXIST_OK_MODE'"
+            exit 1
+            ;;
+        esac
+        export EXIST_OK=$exist_ok
+        if [ "$exist_ok" = 1 ]
+        then
+          exist_ok_note="EXIST_OK=1: name collision check skipped, the recipe is already merged"
+        else
+          exist_ok_note="EXIST_OK=0: name collision check enabled, the name is expected to be free"
+        fi
+
+        {
+          echo "melpazoid develop @ $(git -C "$melpazoid" rev-parse --short HEAD)"
+          echo "RECIPE $recipe"
+          echo "$exist_ok_note"
+        } | tee -a "$log"
+
+        # melpazoid asks docker for --quiet output, so the one step that takes
+        # half an hour prints one line.  Ask for plain progress instead: one
+        # line per docker step, which is enough to tell "compiling" from
+        # "stuck".  If upstream changes the call, the run is merely quieter;
+        # nothing downstream depends on it.
+        if grep -qF "DOCKER_OUTPUT='--quiet'" "$melpazoid/melpazoid/melpazoid.py"
+        then
+          sed -i "s/DOCKER_OUTPUT='--quiet'/DOCKER_OUTPUT='--progress=plain'/" \
+            "$melpazoid/melpazoid/melpazoid.py"
+        fi
+        if ! grep -qF "DOCKER_OUTPUT='--progress=plain'" \
+          "$melpazoid/melpazoid/melpazoid.py"
+        then
+          echo "::warning::melpazoid no longer takes --progress=plain: the log will be quiet"
+        fi
+
+        # sed buffers its output when it is not a terminal, which used to hide
+        # melpazoid's own notes until the pipe filled up; -u keeps them live.
+        set +e
+        start=$(date +%s)
+        RECIPE="$recipe" make -C "$melpazoid" 2>&1 \
+          | sed -u -r 's/\x1B\[[0-9;]*[mGK]//g' \
+          | tee -a "$log"
+        rc=${PIPESTATUS[0]}
+        set -e
+        echo "melpazoid finished in $(( $(date +%s) - start ))s with exit code $rc"
+
+        # The "with [melpazoid]" section is printed only when there are
+        # suggestions, and it never changes melpazoid's exit code.
+        if grep -qF 'with [melpazoid]' "$log"; then
+          echo "::error::melpazoid reported suggestions (see the attached log)"
+          rc=1
+        fi
+
+        exit "$rc"

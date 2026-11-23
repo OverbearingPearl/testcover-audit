@@ -1,0 +1,40 @@
+name: perf
+description: >-
+  Measure the performance budgets in ci/config.el.  With `report` true the
+  table is printed, uploaded as an artifact and a budget that is over does not
+  fail the step, which is what a pull request wants: numbers to look at, not a
+  red mark on a shared runner.  With `report` false the same run fails, which
+  is what the nightly run wants.
+
+inputs:
+  report:
+    description: Print and upload the table instead of failing on it.
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-emacs
+
+    # pipefail keeps the exit status of the run while tee still writes the
+    # table, so the log has the numbers even on the run that fails.
+    - name: measure
+      shell: bash
+      run: |
+        set -o pipefail
+        case "${{ inputs.report }}" in
+          true) ci/run-perf.sh --report | tee perf.txt ;;
+          *)    ci/run-perf.sh | tee perf.txt ;;
+        esac
+        # A failing budget is the script's business; an empty table means the
+        # measurement never happened, which is worth failing on either way.
+        [ -s perf.txt ] || { echo "::error::no measurements were produced"; exit 1; }
+
+    - name: upload the table
+      if: inputs.report == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: perf
+        path: perf.txt
+        if-no-files-found: warn

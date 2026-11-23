@@ -1,0 +1,27 @@
+name: size
+description: >-
+  Report what each module costs and where the same run of lines sits twice.  The
+  table is printed and uploaded as an artifact; nothing here fails, because size
+  has no budget -- a number that fails a build is a number somebody pads around.
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-emacs
+
+    - name: measure
+      shell: bash
+      # `pipefail` so a crashed Emacs is not hidden by the tee, and the size
+      # test so an empty table is a failure: a report that measured nothing is
+      # the one thing worth stopping this stage for.
+      run: |
+        set -o pipefail
+        ci/run-size.sh | tee size.txt
+        [ -s size.txt ] || { echo "::error::no report was produced"; exit 1; }
+
+    - name: upload the report
+      uses: actions/upload-artifact@v4
+      with:
+        name: size
+        path: size.txt
+        if-no-files-found: warn

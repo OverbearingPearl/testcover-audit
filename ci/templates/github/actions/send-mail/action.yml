@@ -1,0 +1,64 @@
+name: send-mail
+description: >-
+  Send one mail over SMTP, and skip the whole thing when `smtp-host` is
+  empty.  The gate belongs here rather than at the call site because a step's
+  `if:` cannot see `secrets`: without this, every caller that wants to stay
+  quiet on a fork has to turn an empty secret into an output first, and the
+  ones that forget get a red step instead of silence.
+
+inputs:
+  smtp-host:
+    description: SMTP server. Empty means do nothing.
+    required: false
+    default: ''
+  smtp-port:
+    description: SMTP port; 465 pairs with implicit TLS below.
+    required: false
+    default: '465'
+  smtp-user:
+    description: SMTP user; also the sender address.
+    required: false
+    default: ''
+  smtp-pass:
+    required: false
+    default: ''
+  to:
+    required: false
+    default: ''
+  subject:
+    required: true
+  body:
+    description: Plain-text part. Always send one; it is what survives.
+    required: true
+  html-body:
+    description: Optional HTML part. Empty means text-only.
+    required: false
+    default: ''
+  attachments:
+    description: Optional comma-separated paths. Empty means none.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    # The two optional inputs are passed as empty strings rather than
+    # branched on: action-send-mail treats a falsy html_body or attachments
+    # as absent.  continue-on-error keeps a mail server outage from failing a
+    # run whose actual work already succeeded -- the log is still the record.
+    - name: send
+      if: inputs.smtp-host != ''
+      continue-on-error: true
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: ${{ inputs.smtp-host }}
+        server_port: ${{ inputs.smtp-port }}
+        secure: true
+        username: ${{ inputs.smtp-user }}
+        password: ${{ inputs.smtp-pass }}
+        from: ${{ inputs.smtp-user }}
+        to: ${{ inputs.to }}
+        subject: ${{ inputs.subject }}
+        body: ${{ inputs.body }}
+        html_body: ${{ inputs.html-body }}
+        attachments: ${{ inputs.attachments }}
