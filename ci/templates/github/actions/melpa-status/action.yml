@@ -35,7 +35,7 @@ outputs:
       lands.
     value: ${{ steps.downloads.outputs.count }}
   report:
-    description: One-line summary, ready to use as a mail subject.
+    description: One-line summary of the package and its count, as the opening line of a mail.
     value: ${{ steps.report.outputs.line }}
   time:
     description: When the count was retrieved, UTC.

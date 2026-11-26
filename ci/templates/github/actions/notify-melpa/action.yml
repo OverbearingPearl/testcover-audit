@@ -1,0 +1,179 @@
+name: notify-melpa
+description: >-
+  Announce that the package is on MELPA -- once.  The record of having said so
+  is the tag `melpa-published`: this action stays silent when the tag exists,
+  and writes it only after the mail has been handed to `send-mail`.  Deleting
+  the tag is how you ask to be told again.
+
+inputs:
+  package:
+    description: Package name, from `melpa-status`.
+    required: true
+  page:
+    description: The MELPA page for the package.
+    required: true
+  recipe:
+    description: The recipe that publishes it, in browsing form.
+    required: true
+  downloads:
+    description: >-
+      Download count, or empty.  Empty is not zero: it means the package has
+      not been installed since it landed.
+    required: false
+    default: ''
+  report:
+    description: One-line summary from `melpa-status`, reused as the body's opening.
+    required: true
+  time:
+    description: When the count was retrieved, UTC.
+    required: true
+  smtp-host:
+    required: false
+    default: ''
+  smtp-port:
+    required: false
+    default: '465'
+  smtp-user:
+    required: false
+    default: ''
+  smtp-pass:
+    required: false
+    default: ''
+  to:
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    # Two questions in one step because they share an answer: either this run
+    # announces, or it says why not.  A repository that never configured mail
+    # must not burn the tag -- that would record an announcement nobody
+    # received.
+    #
+    # `git ls-remote` is the question and its exit code is the answer: 0 means
+    # the tag is there, 2 means the reference does not exist.  Anything else
+    # (network, auth) is an error, not "not announced yet" -- otherwise a
+    # broken lookup would mail the same announcement every day.
+    - name: already announced
+      id: state
+      shell: bash
+      env:
+        PACKAGE_NAME: ${{ inputs.package }}
+        TAG: melpa-published
+        SMTP_HOST: ${{ inputs.smtp-host }}
+        COUNT: ${{ inputs.downloads }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "$COUNT" ]; then
+          echo "downloads_text=no downloads recorded yet" >> "$GITHUB_OUTPUT"
+        else
+          echo "downloads_text=$COUNT downloads" >> "$GITHUB_OUTPUT"
+        fi
+
+        if [ -z "$SMTP_HOST" ]; then
+          echo "announce=false" >> "$GITHUB_OUTPUT"
+          echo "::notice::$PACKAGE_NAME is on MELPA, but no SMTP host is set: nothing to send and no tag written"
+          exit 0
+        fi
+
+        code=0
+        git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1 || code=$?
+        case "$code" in
+          0)
+            echo "announce=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$TAG is in this repository already; $PACKAGE_NAME was announced and will not be again" ;;
+          2)
+            echo "announce=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$PACKAGE_NAME just appeared on MELPA; announcing it" ;;
+          *)
+            echo "::error::looking for tag $TAG failed (git ls-remote exited $code)"
+            exit 1 ;;
+        esac
+
+    # Green header: the only good news the pipeline has, and the reason the
+    # colour is worth reading.  The count is not a link because there is no
+    # page that explains one number; the page is.
+    - name: render the card
+      id: card
+      if: steps.state.outputs.announce == 'true'
+      uses: ./.github/actions/mail-card
+      with:
+        kicker: Published
+        title: ${{ inputs.package }} is on MELPA
+        accent: '#2e7d32'
+        kicker-color: '#c8e6c9'
+        footer: GitHub Actions &middot; ${{ github.workflow }} &middot; run #${{ github.run_number }}
+        body: |
+          <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#333333;">
+            The recipe is merged, so <strong>${{ inputs.package }}</strong> is on MELPA. From here the
+            page is the status: version, build result and download count all live there.
+          </p>
+          <div style="text-align:center;margin:0 0 22px;">
+            <a href="${{ inputs.page }}" style="display:inline-block;background:#2e7d32;color:#ffffff;text-decoration:none;padding:11px 22px;border-radius:6px;font-weight:600;font-size:14px;">Open the MELPA page</a>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;color:#5c636b;">
+            <tr style="border-bottom:1px solid #f0f1f3;">
+              <td style="padding:10px 0;font-weight:600;width:96px;">Page</td>
+              <td style="padding:10px 0;"><a href="${{ inputs.page }}" style="color:#1976d2;text-decoration:none;">${{ inputs.page }}</a></td>
+            </tr>
+            <tr style="border-bottom:1px solid #f0f1f3;">
+              <td style="padding:10px 0;font-weight:600;">Recipe</td>
+              <td style="padding:10px 0;"><a href="${{ inputs.recipe }}" style="color:#1976d2;text-decoration:none;">${{ inputs.recipe }}</a></td>
+            </tr>
+            <tr style="border-bottom:1px solid #f0f1f3;">
+              <td style="padding:10px 0;font-weight:600;">Downloads</td>
+              <td style="padding:10px 0;">${{ steps.state.outputs.downloads_text }}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #f0f1f3;">
+              <td style="padding:10px 0;font-weight:600;">Checked</td>
+              <td style="padding:10px 0;">${{ inputs.time }}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 0;font-weight:600;">Run</td>
+              <td style="padding:10px 0;"><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="color:#1976d2;text-decoration:none;">${{ github.workflow }} &middot; run #${{ github.run_number }}</a></td>
+            </tr>
+          </table>
+          <div style="margin-top:20px;padding:12px;background:#f1f8f2;border-left:4px solid #2e7d32;border-radius:4px;font-size:13px;color:#1b4d21;">
+            <strong>Sent once.</strong> Delete the <code>melpa-published</code> tag in this repository to be told again.
+          </div>
+
+    - name: send mail
+      if: steps.state.outputs.announce == 'true'
+      uses: ./.github/actions/send-mail
+      with:
+        smtp-host: ${{ inputs.smtp-host }}
+        smtp-port: ${{ inputs.smtp-port }}
+        smtp-user: ${{ inputs.smtp-user }}
+        smtp-pass: ${{ inputs.smtp-pass }}
+        to: ${{ inputs.to }}
+        subject: "[MELPA] ${{ github.repository }} - ${{ inputs.package }}"
+        body: |
+          ${{ inputs.report }}
+
+          page:      ${{ inputs.page }}
+          recipe:    ${{ inputs.recipe }}
+          downloads: ${{ steps.state.outputs.downloads_text }}
+          checked:   ${{ inputs.time }}
+
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          This is sent once, the first time the recipe is found.  Delete the
+          melpa-published tag in this repository to be told again.
+        html-body: ${{ steps.card.outputs.html }}
+
+    # After the mail, never before: `send-mail` treats a mail server outage as
+    # noise and carries on, so a tag written first could mark an announcement
+    # that never left.  Written after, the worst case is a second copy next
+    # time -- a duplicate is a smaller mistake than silence.
+    - name: record the announcement
+      if: steps.state.outputs.announce == 'true'
+      shell: bash
+      env:
+        TAG: melpa-published
+      run: |
+        set -euo pipefail
+        git tag "$TAG"
+        git push origin "refs/tags/$TAG"
+        echo "::notice::wrote tag $TAG; later runs stay quiet until it is deleted"

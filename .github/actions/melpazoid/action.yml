@@ -43,8 +43,8 @@ runs:
           https://github.com/riscy/melpazoid.git "$melpazoid"
         echo "melpazoid develop @ $(git -C "$melpazoid" rev-parse --short HEAD)"
 
-    # Whether the name is free is the question melpa-status already answers
-    # for the weekly report, so ask it instead of building the URL twice.
+    # Whether the name is free is the question melpa-status already answers,
+    # so ask it instead of building the URL twice.
     # The step is skipped for forced values, which need no request at all.
     - id: melpa
       if: inputs.exist-ok == 'auto'

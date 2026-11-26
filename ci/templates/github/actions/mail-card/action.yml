@@ -1,0 +1,54 @@
+name: mail-card
+description: >-
+  Render the skeleton both cards share: rounded corners, a coloured header,
+  a white body and a grey footer.  The body is the caller's HTML, so the
+  skeleton decides nothing about the message -- which is why the header colour
+  is an input rather than a flag this action interprets.
+
+inputs:
+  kicker:
+    description: Small uppercase line above the title, e.g. "Pipeline failure".
+    required: true
+  title:
+    description: The one line worth reading in a notification list.
+    required: true
+  accent:
+    description: Header background. The colour is the meaning; pick it here.
+    required: true
+  kicker-color:
+    description: The kicker's colour on that background, a lighter tint of it.
+    required: true
+  body:
+    description: >-
+      HTML for the white area, already rendered by the caller.  Not escaped
+      here: every value interpolated into it comes from a step in this
+      directory, and the alternative -- escaping arbitrary HTML -- is not a
+      thing an escape function does.
+    required: true
+  footer:
+    description: The grey line at the bottom; workflow and run number, usually.
+    required: true
+
+outputs:
+  html:
+    description: The card, ready for `send-mail`'s `html-body`.
+    value: ${{ steps.render.outputs.html }}
+
+runs:
+  using: composite
+  steps:
+    # A script rather than a dozen `echo` lines: the markup quotes 'Segoe UI'
+    # and is written in `"`, so expressing it as YAML arguments is a fight
+    # about quoting, and a heredoc inside a YAML block scalar cannot be
+    # terminated at column 0 where shell needs it.
+    - name: render
+      id: render
+      shell: bash
+      env:
+        KICKER: ${{ inputs.kicker }}
+        TITLE: ${{ inputs.title }}
+        ACCENT: ${{ inputs.accent }}
+        KICKER_COLOR: ${{ inputs.kicker-color }}
+        BODY: ${{ inputs.body }}
+        FOOTER: ${{ inputs.footer }}
+      run: sh "${{ github.action_path }}/render.sh"

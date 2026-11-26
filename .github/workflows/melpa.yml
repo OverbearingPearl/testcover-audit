@@ -1,0 +1,68 @@
+name: MELPA
+
+# The recipe appearing in melpa/melpa is the one event this repository cares
+# about and cannot cause, so it is the one thing worth asking about on a
+# schedule.  The question is two HTTP requests, which is why asking daily is
+# cheaper than the week of silence a weekly run would buy.
+#
+# Everything else here is silence: not on MELPA yet is the state the package
+# was in yesterday, and mailing about it would be a report of nothing.  The
+# announcement itself goes out once -- `notify-melpa` keeps the record -- so
+# this is not the weekly report that was deleted, it is the transition.
+on:
+  schedule:
+    - cron: '20 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: melpa-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  melpa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The one write in this suite, and it is a tag, not a commit: the record
+    # that the announcement has been sent.  On a repository whose default
+    # GITHUB_TOKEN is read-only this step fails, which is the honest outcome --
+    # a silent downgrade would mean the mail every day.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # The count is fetched here as well, because the announcement is the
+      # only mail that wants it and this is the only caller that does.
+      - id: status
+        uses: ./.github/actions/melpa-status
+
+      - if: steps.status.outputs.exists == 'true'
+        uses: ./.github/actions/notify-melpa
+        with:
+          package: ${{ steps.status.outputs.package }}
+          page: ${{ steps.status.outputs.page }}
+          recipe: ${{ steps.status.outputs.recipe }}
+          downloads: ${{ steps.status.outputs.downloads }}
+          report: ${{ steps.status.outputs.report }}
+          time: ${{ steps.status.outputs.time }}
+          smtp-host: ${{ secrets.SMTP_HOST }}
+          smtp-port: ${{ secrets.SMTP_PORT }}
+          smtp-user: ${{ secrets.SMTP_USER }}
+          smtp-pass: ${{ secrets.SMTP_PASS }}
+          to: ${{ secrets.NOTIFY_EMAIL }}
+
+      # A probe that returned 5xx, or a tag push that was refused, fails here
+      # like every other stage: "not published" and "could not ask" must not
+      # look the same in an inbox.
+      - if: failure()
+        uses: ./.github/actions/notify-failure
+        with:
+          stage: melpa
+          smtp-host: ${{ secrets.SMTP_HOST }}
+          smtp-port: ${{ secrets.SMTP_PORT }}
+          smtp-user: ${{ secrets.SMTP_USER }}
+          smtp-pass: ${{ secrets.SMTP_PASS }}
+          to: ${{ secrets.NOTIFY_EMAIL }}

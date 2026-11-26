@@ -36,8 +36,8 @@ What it writes, and what to do with each:
                             change was made -- which no script reads
   .gitignore                compiler output, package caches, dist/ and CI
                             logs; written only when the project has none
-  .github/                  lint, test, size, perf and coverage, plus a manual
-                            melpazoid check
+  .github/                  lint, test, size, perf and coverage, the daily
+                            MELPA announcement, and a manual melpazoid check
 
 Hooks are installed only when this run wrote the hook config: a project that
 already has `.pre-commit-config.yaml`, or hooks in .git/hooks, keeps them, and
@@ -268,7 +268,7 @@ else
   [ ! -d .github ] || refuse_if_dirty .github
   rm -rf .github
   cp -R "$here/templates/github" .github
-  echo "wrote .github/ (ci, perf and release; melpazoid is a manual job)"
+  echo "wrote .github/ (ci, perf, melpa and release; melpazoid is a manual job)"
   touched="$touched .github"
 fi
 

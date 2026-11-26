@@ -349,7 +349,7 @@ ci/size.el           what a module costs and repeats (policy in config.el)
 ci/run-*.sh          the entry points make calls: checks, tests, perf, size
 
 .github/actions/     one composite action per stage
-.github/workflows/   ci, perf and release: stage orchestration only
+.github/workflows/   ci, perf, melpa and release: stage orchestration only
 ```
 
 A check is added by creating `ci/checks/NN-<name>.el` and calling
@@ -390,9 +390,12 @@ reach for `--no-verify`, and that one habit costs more than any check it skips.
   MELPA pull request, not on every push. Trigger it with *Run workflow* on CI
   and tick `melpazoid`, or `gh workflow run ci.yml -f melpazoid=true`.
 
-One stage runs on a schedule rather than on an event: the nightly perf run,
-which fails into the same mail as everything else. A tag runs lint, the
-version check, `make dist` and the release.
+Two stages run on a schedule rather than on an event, and they are the two
+kinds of schedule there are. The nightly perf run enforces the budgets, failing
+into the same mail as everything else. The daily MELPA check is the opposite:
+it exists to send one mail the day the recipe appears, and to be silent on
+every other day. A tag runs lint, the version check, `make dist` and the
+release.
 
 ## Emacs versions
 
@@ -513,13 +516,42 @@ Only `404` means "not yet".  Network failures fail the run and reach
 `notify-failure` like every other stage; otherwise a broken probe looks
 exactly like an unpublished package.
 
+## Announcing it once
+
+The page is the status, which leaves a schedule one thing to do: notice the
+transition.  `.github/workflows/melpa.yml` asks `melpa-status` once a day and
+then does nothing unless the recipe exists.  A package that is not on MELPA yet
+is in the state it was in yesterday, and a mail about it would report nothing.
+
+The mail goes out once, because "it is published" is an event, and a repeating
+version of it is the weekly report that was deleted.  The record of having said
+so is the tag `melpa-published`: the announcement looks for it, mails only when
+it is missing, and writes it after handing the mail to `send-mail`.  A tag
+rather than a file committed to the default branch, because the job has no
+business committing, and rather than a repository variable, which is invisible
+exactly where people look and cannot be reset by deleting something.
+
+Order matters.  `send-mail` treats an SMTP outage as noise and carries on, so a
+tag written first could stand for a mail that never left.  Written last, the
+worst case is a second copy the next day -- a duplicate is a smaller mistake
+than silence.
+
+With `SMTP_HOST` unset nothing is sent *and nothing is tagged*: a fork, or a
+project that never configured mail, would otherwise burn the record and lose
+the announcement it stands for.  This is also the only job that asks for
+`contents: write`, because pushing that tag is the only write in the suite.  On
+a repository whose default token is read-only the push fails and reaches
+`notify-failure` like any other stage; a silent downgrade would mean a mail
+every day.
+
 ## Notification mail
 
-Both mails carry two parts: a plain-text body with the same facts, for
+Both kinds of mail carry two parts: a plain-text body with the same facts, for
 terminals and mailboxes that are grepped rather than read, and an HTML card
-for clients that render it.  The two cards are the same skeleton — rounded
-card, coloured header, white body, grey footer — and the header colour is
-the message: red.  That is the one thing worth scanning a subject line for.
+for clients that render it.  The cards share a skeleton — rounded card,
+coloured header, white body, grey footer — and the header colour is the
+message: red for a failure, green for the one good thing that can happen to a
+package.  That is the one thing worth scanning a subject line for.
 
 No images and one colour each, so a client that strips styles down to text
 loses nothing.  Logs are deliberately kept out of the HTML: they are in the
@@ -539,10 +571,16 @@ is written down once in `melpa-status`, which hands the page and recipe URLs
 out as outputs.  That is what makes the directory copyable -- drop it into
 another Emacs Lisp package and the mails name that package with no edit.
 
-The card lives inside an action because six jobs send it.  A renderer shared
-with something that does not exist would be a layer for nothing, so the
-skeleton stays inline until a second card appears; that is the signal to
-build the renderer.
+The skeleton lives in `mail-card` because two cards use it, and the frame is
+the part that would drift first: a radius changed in one and not the other is
+the kind of difference nobody notices until a mail looks broken.  The body
+stays with the caller, because the failure card's table is not the
+announcement's, and a renderer that took rows as data would have to escape
+every value to be safe -- a promise these cards do not need, since every value
+in them comes from a step in this directory.
+
+`notify-failure` remains the only thing that assembles a failure report, and
+six jobs still call it.
 
 ## pre-commit is local-only, on purpose
 
@@ -823,17 +861,21 @@ When `SMTP_HOST` is unset (for example on a fork pull request) the mail is
 skipped silently.  That gate lives in `.github/actions/send-mail`, which every
 report goes through, because a step's `if:` cannot read `secrets`: putting the
 check in one action beats turning an empty secret into an output at every call
-site.
+site.  The MELPA announcement checks the same input for a second reason -- it
+writes no `melpa-published` tag without a host, so an unconfigured repository
+cannot record an announcement it never made.
 
 ## Shared actions
 
-Five things are used by more than one job and are defined once:
+Seven things are used more than once and are defined once:
 
 | action | why it exists |
 |---|---|
 | `setup-emacs` | the guarded apt install and the version line were copied into several actions and drifting |
 | `send-mail` | the only place that knows an empty `SMTP_HOST` means silence |
-| `melpa-status` | the only place that knows what "published" means: melpazoid asks it whether the recipe exists |
+| `melpa-status` | the only place that knows what "published" means: melpazoid asks it whether the recipe exists, and the announcement asks it for the page, the recipe URL and the count |
+| `mail-card` | the frame both cards are built in: header colour, title, footer, and nothing about the message |
+| `notify-melpa` | the once-only announcement: checks the `melpa-published` tag, mails, writes the tag |
 | `notify-failure` | builds the report, reads the run's identity from the `github` context, hands it to `send-mail` |
 | `perf` | the pull request run and the nightly run execute the same thing, differing only in whether a budget that is over fails |
 

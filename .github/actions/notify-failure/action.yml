@@ -69,6 +69,55 @@ runs:
         head -n 60 "$report" >> "$GITHUB_OUTPUT"
         echo "P_REPORT_EOF" >> "$GITHUB_OUTPUT"
 
+    - name: render the card
+      id: card
+      if: inputs.smtp-host != ''
+      uses: ./.github/actions/mail-card
+      with:
+        # Red header, and green is the other one: the colour is the message.
+        # The log itself stays out of the HTML -- it is in the attachment and
+        # in the text part, and pasting arbitrary log lines into a document
+        # means escaping them, or not escaping them and occasionally sending
+        # mail that renders as garbage from the first `<` onward.
+        kicker: Pipeline failure
+        title: ${{ inputs.stage }} failed
+        accent: '#b3261e'
+        kicker-color: '#f2cfcb'
+        footer: GitHub Actions &middot; ${{ github.workflow }} &middot; run #${{ github.run_number }}
+        body: |
+          <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#333333;">
+            The <strong>${{ inputs.stage }}</strong> stage failed on <strong>${{ github.ref_name }}</strong>.
+            The full log is attached; the button opens the live output.
+          </p>
+          <div style="text-align:center;margin:0 0 22px;">
+            <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="display:inline-block;background:#1976d2;color:#ffffff;text-decoration:none;padding:11px 22px;border-radius:6px;font-weight:600;font-size:14px;">View the run</a>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;color:#5c636b;">
+            <tr style="border-bottom:1px solid #f0f1f3;">
+              <td style="padding:10px 0;font-weight:600;width:96px;">Repository</td>
+              <td style="padding:10px 0;"><a href="${{ github.server_url }}/${{ github.repository }}" style="color:#1976d2;text-decoration:none;">${{ github.repository }}</a></td>
+            </tr>
+            <tr style="border-bottom:1px solid #f0f1f3;">
+              <td style="padding:10px 0;font-weight:600;">Ref</td>
+              <td style="padding:10px 0;"><a href="${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}" style="color:#1976d2;text-decoration:none;">${{ github.ref_name }}</a></td>
+            </tr>
+            <tr style="border-bottom:1px solid #f0f1f3;">
+              <td style="padding:10px 0;font-weight:600;">Commit</td>
+              <td style="padding:10px 0;font-family:monospace;font-size:13px;"><a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" style="color:#1976d2;text-decoration:none;">${{ github.sha }}</a></td>
+            </tr>
+            <tr style="border-bottom:1px solid #f0f1f3;">
+              <td style="padding:10px 0;font-weight:600;">Stage</td>
+              <td style="padding:10px 0;">${{ inputs.stage }} &middot; job <code>${{ github.job }}</code></td>
+            </tr>
+            <tr>
+              <td style="padding:10px 0;font-weight:600;">Workflow</td>
+              <td style="padding:10px 0;"><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="color:#1976d2;text-decoration:none;">${{ github.workflow }} &middot; run #${{ github.run_number }}</a> &middot; <a href="${{ github.server_url }}/${{ github.repository }}/actions" style="color:#1976d2;text-decoration:none;">all runs</a></td>
+            </tr>
+          </table>
+          <div style="margin-top:20px;padding:12px;background:#fdf1ef;border-left:4px solid #d32f2f;border-radius:4px;font-size:13px;color:#7f1d17;">
+            <strong>Attached:</strong> <code>failure-report.txt</code>, with the log tails, for review without GitHub.
+          </div>
+
     - name: send mail
       uses: ./.github/actions/send-mail
       with:
@@ -87,55 +136,5 @@ runs:
           Commit: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
 
           The full report is attached as failure-report.txt.
-        # Red header: the colour is the whole point of having two cards.  The
-        # log itself stays out of the HTML -- it is in the attachment and in
-        # the text part, and pasting arbitrary log lines into a document
-        # means escaping them, or not escaping them and occasionally sending
-        # mail that renders as garbage from the first `<` onward.
-        html-body: |
-          <div style="margin:0;padding:24px 12px;background:#f5f6f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-            <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e3e5e8;border-radius:10px;overflow:hidden;">
-              <div style="padding:20px 24px;background:#b3261e;">
-                <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#f2cfcb;">Pipeline failure</div>
-                <div style="font-size:20px;font-weight:600;color:#ffffff;margin-top:4px;">${{ inputs.stage }} failed</div>
-              </div>
-              <div style="padding:24px;">
-                <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#333333;">
-                  The <strong>${{ inputs.stage }}</strong> stage failed on <strong>${{ github.ref_name }}</strong>.
-                  The full log is attached; the button opens the live output.
-                </p>
-                <div style="text-align:center;margin:0 0 22px;">
-                  <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="display:inline-block;background:#1976d2;color:#ffffff;text-decoration:none;padding:11px 22px;border-radius:6px;font-weight:600;font-size:14px;">View the run</a>
-                </div>
-                <table style="width:100%;border-collapse:collapse;font-size:14px;color:#5c636b;">
-                  <tr style="border-bottom:1px solid #f0f1f3;">
-                    <td style="padding:10px 0;font-weight:600;width:96px;">Repository</td>
-                    <td style="padding:10px 0;"><a href="${{ github.server_url }}/${{ github.repository }}" style="color:#1976d2;text-decoration:none;">${{ github.repository }}</a></td>
-                  </tr>
-                  <tr style="border-bottom:1px solid #f0f1f3;">
-                    <td style="padding:10px 0;font-weight:600;">Ref</td>
-                    <td style="padding:10px 0;"><a href="${{ github.server_url }}/${{ github.repository }}/tree/${{ github.ref_name }}" style="color:#1976d2;text-decoration:none;">${{ github.ref_name }}</a></td>
-                  </tr>
-                  <tr style="border-bottom:1px solid #f0f1f3;">
-                    <td style="padding:10px 0;font-weight:600;">Commit</td>
-                    <td style="padding:10px 0;font-family:monospace;font-size:13px;"><a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}" style="color:#1976d2;text-decoration:none;">${{ github.sha }}</a></td>
-                  </tr>
-                  <tr style="border-bottom:1px solid #f0f1f3;">
-                    <td style="padding:10px 0;font-weight:600;">Stage</td>
-                    <td style="padding:10px 0;">${{ inputs.stage }} &middot; job <code>${{ github.job }}</code></td>
-                  </tr>
-                  <tr>
-                    <td style="padding:10px 0;font-weight:600;">Workflow</td>
-                    <td style="padding:10px 0;"><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="color:#1976d2;text-decoration:none;">${{ github.workflow }} &middot; run #${{ github.run_number }}</a> &middot; <a href="${{ github.server_url }}/${{ github.repository }}/actions" style="color:#1976d2;text-decoration:none;">all runs</a></td>
-                  </tr>
-                </table>
-                <div style="margin-top:20px;padding:12px;background:#fdf1ef;border-left:4px solid #d32f2f;border-radius:4px;font-size:13px;color:#7f1d17;">
-                  <strong>Attached:</strong> <code>failure-report.txt</code>, with the log tails, for review without GitHub.
-                </div>
-              </div>
-              <div style="padding:14px 24px;background:#fafbfc;border-top:1px solid #eef0f2;font-size:12px;color:#8a9099;">
-                GitHub Actions &middot; ${{ github.workflow }} &middot; run #${{ github.run_number }}
-              </div>
-            </div>
-          </div>
+        html-body: ${{ steps.card.outputs.html }}
         attachments: build/failure-report.txt
